@@ -15,18 +15,22 @@ import java.util.Map;
  * @param anchorX  pivot point, for example the feet of a character; defaults to bottom centre
  * @param anchorY  pivot point y
  * @param parts    reusable pieces, in file order; each may have its own size
- * @param frames   finished full-size images (stamps and recolours already applied), in file order
+ * @param frames   finished full-size images (stamps, recolours, derivations and effects already
+ *                 applied), in file order
+ * @param anims    animations over the frames, in file order
  * @param variants recoloured copies of the whole sprite: variant name to symbol mapping
  * @param warnings non-fatal problems, such as a frame with no pixels
  */
 public record Sprite(String name, int width, int height, Palette palette, int anchorX, int anchorY,
-                     Map<String, Grid> parts, Map<String, Frame> frames,
+                     Map<String, Grid> parts, Map<String, Frame> frames, Map<String, Anim> anims,
                      Map<String, Map<Character, Character>> variants, List<String> warnings) {
 
     /** One finished image of the sprite. */
     public record Frame(String name, Grid grid) {}
 
     public Frame frame(String name) { return frames.get(name); }
+
+    public Anim anim(String name) { return anims.get(name); }
 
     /** The variant as a sprite of its own: every part and frame recoloured, without further variants. */
     public Sprite variant(String variantName) {
@@ -36,7 +40,7 @@ public record Sprite(String name, int width, int height, Palette palette, int an
         parts.forEach((n, g) -> newParts.put(n, g.recolor(map)));
         Map<String, Frame> newFrames = new LinkedHashMap<>();
         frames.forEach((n, f) -> newFrames.put(n, new Frame(n, f.grid().recolor(map))));
-        return new Sprite(variantName, width, height, palette, anchorX, anchorY, newParts, newFrames,
+        return new Sprite(variantName, width, height, palette, anchorX, anchorY, newParts, newFrames, anims,
                 Map.of(), List.of());
     }
 

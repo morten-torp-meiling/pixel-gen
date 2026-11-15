@@ -76,6 +76,16 @@ public final class Grid {
         return false;
     }
 
+    /** Moved by (dx, dy), right and down for positive values; what leaves the grid is cut off. */
+    public Grid shift(int dx, int dy) {
+        return blank(width, height).stamp(this, dx, dy);
+    }
+
+    /** True when {@link #shift} would cut off visible cells. */
+    public boolean shiftClips(int dx, int dy) {
+        return blank(width, height).clips(this, dx, dy);
+    }
+
     /** Mirrored left to right. */
     public Grid flipX() {
         char[] out = new char[cells.length];

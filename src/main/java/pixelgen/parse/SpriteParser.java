@@ -1,5 +1,6 @@
 package pixelgen.parse;
 
+import pixelgen.model.Anim;
 import pixelgen.model.Effects;
 import pixelgen.model.Grid;
 import pixelgen.model.Palette;
@@ -11,8 +12,10 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,6 +46,13 @@ import java.util.regex.Pattern;
  *   shadow ~ 12 3        a 12x3 ellipse behind the art, bottom row on the anchor (only fills empty cells)
  * end
  *
+ * frame left_0 from right_0 flipx        a frame derived from another, with no rows or 'end';
+ * frame bob from idle shift 0 -1         options in any order: flipx, flipy, shift <dx> <dy>,
+ *                                        recolor <from>><to> ...
+ *
+ * anim walk_down fps 8 loop: down_1 down_0 down_2 down_0    an animation; 'once:' stops at the end;
+ * anim swing fps 10 once: swing_0 swing_1*2 swing_2         frame*2 shows a frame for 2 ticks
+ *
  * variant farmer_blue recolor e>b E>B    a recoloured copy of the whole sprite
  *
  * outline K            outline and shadow lines outside a frame apply to every frame,
@@ -58,16 +68,18 @@ import java.util.regex.Pattern;
 public final class SpriteParser {
 
     public static final int MAX_SIZE = 256;
+    /** Highest animation rate accepted, in frames per second. */
+    public static final int MAX_FPS = 120;
     /** Unknown-symbol errors reported per grid before the rest are summarised. */
     public static final int MAX_SYMBOL_ERRORS_PER_GRID = 10;
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_-]+");
     private static final Set<String> KEYWORDS =
-            Set.of("sprite", "size", "palette", "anchor", "part", "frame", "variant", "end");
+            Set.of("sprite", "size", "palette", "anchor", "part", "frame", "variant", "anim", "end");
     private static final Set<String> FRAME_OPS = Set.of("stamp", "recolor", "outline", "shadow");
     /** Frame operations that may also stand outside a frame, applying to every frame. */
     private static final Set<String> SPRITE_EFFECTS = Set.of("outline", "shadow");
-    private static final Set<String> REPEATABLE = Set.of("part", "frame", "variant", "end");
+    private static final Set<String> REPEATABLE = Set.of("part", "frame", "variant", "anim", "end");
 
     private SpriteParser() {}
 
@@ -80,13 +92,22 @@ public final class SpriteParser {
 
     private record Stamp(int line, String part, int x, int y, boolean flipX, boolean flipY) implements Op {}
 
-    private record Recolor(int line, Map<Character, Character> map) implements Op {}
+    private record Recolor(int line, Map<Character, Character> map) implements Op, Transform {}
 
     private record Outline(int line, char symbol, Effects.OutlineMode mode) implements Op {}
 
     private record Shadow(int line, char symbol, int width, int height) implements Op {}
 
     private record Variant(int line, String name, Map<Character, Character> map) {}
+
+    private record AnimDef(int line, Anim anim) {}
+
+    /** A change made to a derived frame's source image, in the order written. */
+    private sealed interface Transform permits Flip, Move, Recolor {}
+
+    private record Flip(boolean horizontal) implements Transform {}
+
+    private record Move(int dx, int dy) implements Transform {}
 
     /** A part or frame as written, before it's checked. */
     private static final class Block {
@@ -95,6 +116,8 @@ public final class SpriteParser {
         final int line;
         final List<Row> rows = new ArrayList<>();
         final List<Op> ops = new ArrayList<>();
+        String from;  // derived frames: the frame they copy
+        final List<Transform> transforms = new ArrayList<>();
         boolean broken;  // a syntax error inside; skip size checks to avoid follow-on errors
 
         Block(String kind, String name, int line) {
@@ -104,6 +127,8 @@ public final class SpriteParser {
         }
 
         boolean isPart() { return kind.equals("part"); }
+
+        boolean isDerived() { return from != null; }
 
         String label() { return kind + " '" + name + "'"; }
     }
@@ -132,6 +157,7 @@ public final class SpriteParser {
         List<Block> blocks = new ArrayList<>();
         List<Variant> variants = new ArrayList<>();
         List<Op> spriteEffects = new ArrayList<>();  // outline/shadow lines outside frames
+        List<AnimDef> animDefs = new ArrayList<>();
         Block open = null;
 
         String[] lines = text.split("\\R", -1);
@@ -196,7 +222,15 @@ public final class SpriteParser {
                     anchor = ints(tokens, 1, 2, where, "anchor <x> <y>", errors);
                     anchorLine = lineNo;
                 }
+                case "anim" -> {
+                    Anim a = parseAnim(tokens, where, errors);
+                    if (a != null) animDefs.add(new AnimDef(lineNo, a));
+                }
                 case "part", "frame" -> {
+                    if (tokens[0].equals("frame") && tokens.length >= 3 && tokens[2].equals("from")) {
+                        blocks.add(parseDerived(tokens, lineNo, where, errors));
+                        continue;
+                    }
                     if (tokens.length != 2 || !NAME.matcher(tokens[1]).matches()) {
                         errors.add(where + "expected '" + tokens[0] + " <name>' (letters, digits, _ and -)");
                     }
@@ -274,12 +308,24 @@ public final class SpriteParser {
         for (Op op : spriteEffects) {
             if (checkSymbol(effectSymbol(op), palette, source + ":" + op.line() + ": ", errors)) effects.add(op);
         }
-        Map<Op, List<String>> clippedFrames = new LinkedHashMap<>();
-        Map<String, Sprite.Frame> frames = new LinkedHashMap<>();
-        for (Block b : unique) {
-            if (b.isPart()) continue;
+        // Frames: drawn ones first, then derived ones (which may copy each other), all before
+        // sprite-level effects, so a flipped frame gets its outline and shadow drawn afresh.
+        Map<String, Block> frameBlocks = new LinkedHashMap<>();
+        for (Block b : unique) if (!b.isPart()) frameBlocks.put(b.name, b);
+        Map<String, Grid> built = new HashMap<>();
+        for (Block b : frameBlocks.values()) {
+            if (b.isDerived()) continue;
             Grid grid = buildFrame(b, source, width, height, palette, anchorX, anchorY, declaredParts, parts,
                     errors, warnings);
+            if (grid != null) built.put(b.name, grid);
+        }
+        Derivation derivation = new Derivation(source, palette, frameBlocks, declaredParts, built, errors, warnings);
+        for (Block b : frameBlocks.values()) if (b.isDerived()) derivation.derive(b);
+
+        Map<Op, List<String>> clippedFrames = new LinkedHashMap<>();
+        Map<String, Sprite.Frame> frames = new LinkedHashMap<>();
+        for (Block b : frameBlocks.values()) {
+            Grid grid = built.get(b.name);
             if (grid == null) continue;
             for (Op op : effects) {
                 Effects.Result r = applyEffect(op, grid, palette, anchorX, anchorY);
@@ -309,9 +355,208 @@ public final class SpriteParser {
             }
         }
 
+        Map<String, Anim> anims = new LinkedHashMap<>();
+        Map<String, Integer> animLines = new HashMap<>();
+        for (AnimDef def : animDefs) {
+            Anim a = def.anim();
+            String where = source + ":" + def.line() + ": ";
+            Integer first = animLines.putIfAbsent(a.name(), def.line());
+            if (first != null) {
+                errors.add(where + "anim '" + a.name() + "' is already defined on line " + first);
+                continue;
+            }
+            Set<String> unknown = new LinkedHashSet<>();
+            for (Anim.Step step : a.steps()) {
+                if (!frameBlocks.containsKey(step.frame())) unknown.add(step.frame());
+            }
+            for (String u : unknown) {
+                errors.add(where + "anim '" + a.name() + "': no frame '" + u + "'" + framesHint(frameBlocks, declaredParts, u));
+            }
+            if (unknown.isEmpty()) anims.put(a.name(), a);
+        }
+
         if (!errors.isEmpty()) throw new ParseException(sortByLine(errors, source));
-        return new Sprite(name, width, height, palette, anchorX, anchorY, parts, frames, variantMaps,
+        return new Sprite(name, width, height, palette, anchorX, anchorY, parts, frames, anims, variantMaps,
                 sortByLine(warnings, source));
+    }
+
+    /** " (frames: a, b)", or a hint that the name is a part. */
+    private static String framesHint(Map<String, Block> frameBlocks, Set<String> parts, String name) {
+        if (parts.contains(name)) return " ('" + name + "' is a part; frames can use it with 'stamp')";
+        return frameBlocks.isEmpty() ? " (no frames are defined)"
+                : " (frames: " + String.join(", ", frameBlocks.keySet()) + ")";
+    }
+
+    /** Builds derived frames from their sources, following chains and catching loops. */
+    private static final class Derivation {
+        final String source;
+        final Palette palette;
+        final Map<String, Block> frameBlocks;
+        final Set<String> parts;
+        final Map<String, Grid> built;
+        final List<String> errors, warnings;
+        final Set<String> done = new HashSet<>();
+        final List<String> visiting = new ArrayList<>();
+
+        Derivation(String source, Palette palette, Map<String, Block> frameBlocks, Set<String> parts,
+                   Map<String, Grid> built, List<String> errors, List<String> warnings) {
+            this.source = source;
+            this.palette = palette;
+            this.frameBlocks = frameBlocks;
+            this.parts = parts;
+            this.built = built;
+            this.errors = errors;
+            this.warnings = warnings;
+        }
+
+        /** The derived frame's image (also stored in {@code built}), or null after an error. */
+        Grid derive(Block b) {
+            if (done.contains(b.name)) return built.get(b.name);
+            String where = source + ":" + b.line + ": " + b.label() + ": ";
+            if (visiting.contains(b.name)) {
+                List<String> loop = new ArrayList<>(visiting.subList(visiting.indexOf(b.name), visiting.size()));
+                loop.add(b.name);
+                errors.add(where + "frames can't derive from each other in a loop (" + String.join(" -> ", loop) + ")");
+                return null;
+            }
+            if (b.broken) {
+                done.add(b.name);
+                return null;
+            }
+            visiting.add(b.name);
+            Block src = frameBlocks.get(b.from);
+            Grid grid;
+            if (src == null) {
+                errors.add(where + "no frame '" + b.from + "' to derive from" + framesHint(frameBlocks, parts, b.from));
+                grid = null;
+            } else {
+                grid = src.isDerived() ? derive(src) : built.get(src.name);
+            }
+            for (Transform t : b.transforms) {
+                switch (t) {
+                    case Flip f -> {
+                        if (grid != null) grid = f.horizontal() ? grid.flipX() : grid.flipY();
+                    }
+                    case Move m -> {
+                        if (grid == null) continue;
+                        if (grid.shiftClips(m.dx(), m.dy())) {
+                            warnings.add(where + "shift " + m.dx() + " " + m.dy()
+                                    + " moves pixels out of the frame; they are cut off");
+                        }
+                        grid = grid.shift(m.dx(), m.dy());
+                    }
+                    case Recolor r -> {
+                        if (!checkSymbols(r.map(), palette, source + ":" + b.line + ": ", errors)) grid = null;
+                        if (grid != null) grid = grid.recolor(r.map());
+                    }
+                }
+            }
+            visiting.removeLast();
+            done.add(b.name);
+            if (grid != null) built.put(b.name, grid);
+            return grid;
+        }
+    }
+
+    /** {@code frame <name> from <frame> [flipx] [flipy] [shift <dx> <dy>] [recolor <a>b> ...]}, in any order. */
+    private static Block parseDerived(String[] tokens, int lineNo, String where, List<String> errors) {
+        String form = "frame <name> from <frame> [flipx] [flipy] [shift <dx> <dy>] [recolor <from>><to> ...]";
+        Block b = new Block("frame", tokens[1], lineNo);
+        b.from = tokens.length > 3 ? tokens[3] : "?";
+        if (!NAME.matcher(tokens[1]).matches() || tokens.length < 4 || !NAME.matcher(tokens[3]).matches()) {
+            errors.add(where + "expected '" + form + "'");
+            b.broken = true;
+            return b;
+        }
+        int i = 4;
+        while (i < tokens.length) {
+            switch (tokens[i]) {
+                case "flipx", "flipy" -> {
+                    b.transforms.add(new Flip(tokens[i].equals("flipx")));
+                    i++;
+                }
+                case "shift" -> {
+                    int[] d = i + 2 < tokens.length ? ints(tokens, i + 1, 2, where, form, errors) : null;
+                    if (i + 2 >= tokens.length) errors.add(where + "expected 'shift <dx> <dy>'");
+                    if (d == null) {
+                        b.broken = true;
+                        return b;
+                    }
+                    b.transforms.add(new Move(d[0], d[1]));
+                    i += 3;
+                }
+                case "recolor" -> {
+                    int j = i + 1;
+                    while (j < tokens.length && tokens[j].length() == 3 && tokens[j].charAt(1) == '>') j++;
+                    Map<Character, Character> map = pairs(Arrays.copyOfRange(tokens, 0, j), i + 1, where, errors);
+                    if (map == null) {
+                        b.broken = true;
+                        return b;
+                    }
+                    b.transforms.add(new Recolor(lineNo, map));
+                    i = j;
+                }
+                default -> {
+                    errors.add(where + "unknown option '" + tokens[i]
+                            + "'; expected flipx, flipy, shift <dx> <dy> or recolor <from>><to> ...");
+                    b.broken = true;
+                    return b;
+                }
+            }
+        }
+        return b;
+    }
+
+    /** {@code anim <name> fps <n> loop|once: <frame>[*<duration>] ...}; frame names are checked later. */
+    private static Anim parseAnim(String[] tokens, String where, List<String> errors) {
+        String form = "anim <name> fps <n> loop|once: <frame>[*<duration>] ...";
+        if (tokens.length < 5 || !NAME.matcher(tokens[1]).matches() || !tokens[2].equals("fps")) {
+            errors.add(where + "expected '" + form + "'");
+            return null;
+        }
+        double fps = number(tokens[3]);
+        if (!(fps > 0 && fps <= MAX_FPS)) {
+            errors.add(where + "fps must be a number above 0 and at most " + MAX_FPS + ", not '" + tokens[3] + "'");
+            return null;
+        }
+        String mode = tokens[4];
+        int i = 5;
+        if (mode.endsWith(":")) {
+            mode = mode.substring(0, mode.length() - 1);
+        } else if (i < tokens.length && tokens[i].equals(":")) {
+            i++;
+        }
+        if (!mode.equals("loop") && !mode.equals("once")) {
+            errors.add(where + "expected 'loop:' or 'once:' after the fps, not '" + tokens[4] + "'");
+            return null;
+        }
+        List<Anim.Step> steps = new ArrayList<>();
+        for (; i < tokens.length; i++) {
+            String t = tokens[i];
+            int star = t.indexOf('*');
+            String frame = star < 0 ? t : t.substring(0, star);
+            double duration = star < 0 ? 1 : number(t.substring(star + 1));
+            if (!NAME.matcher(frame).matches()) {
+                errors.add(where + "'" + t + "' is not a frame name; expected <frame> or <frame>*<duration>, like down_0*2");
+                return null;
+            }
+            if (!(duration > 0 && duration <= MAX_FPS)) {
+                errors.add(where + "'" + t + "': the duration after '*' must be a number above 0, like down_0*2");
+                return null;
+            }
+            steps.add(new Anim.Step(frame, duration));
+        }
+        if (steps.isEmpty()) {
+            errors.add(where + "anim '" + tokens[1] + "' has no frames; list them after '" + mode + ":'");
+            return null;
+        }
+        return new Anim(tokens[1], fps, mode.equals("loop"), steps);
+    }
+
+    /** A plain decimal number such as 8 or 1.5, or NaN. */
+    private static double number(String text) {
+        if (!text.matches("\\d+(\\.\\d+)?")) return Double.NaN;
+        return Double.parseDouble(text);
     }
 
     /** Reads one line inside a part or frame: a grid row or a frame operation. */

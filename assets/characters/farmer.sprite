@@ -1,0 +1,251 @@
+# The farmer, 16x32, top-down 3/4 view, light from the top left.
+# Idle and walk in four directions; left is the right side flipped.
+# Built from parts: the upper body ("top_*") bobs 1 px on contact frames and
+# breathes in idle, the legs change pose; legs are stamped last, so the hips stay put.
+sprite farmer
+size 16 32
+palette farm
+anchor 8 31
+shadow ~ 12 3
+
+# ---- facing down (towards the viewer) ----
+part top_down
+  ................
+  .....KKKKKK.....
+  ...KKhuuuhhKK...
+  ..KhuuuuuhhhhK..
+  .KhuuuhhhhhhhHK.
+  .KhuhhhhhhhhHHK.
+  .KhhhhhHhhhhhHK.
+  .KhhsShhSShhhHK.
+  .KhsSSShSSSSjhK.
+  .KhsSKSSSSKSjhK.
+  .KHsSKSSSSKSjHK.
+  ..KsrSSSSSSrjK..
+  ..KsSSSjjSSjJK..
+  ...KjSSSSSSjK...
+  ....KKjjjjKK....
+  ..KKReRjjReEKK..
+  .KReeeeeeeeeEEK.
+  .KRekeeeeeekeEK.
+  .KRekRReeeekeEK.
+  .KRekeeeeeEkeEK.
+  .KsSkeeeeeEkSjK.
+  .KSjkEEEEEEkSjK.
+  ..KKWWWoOWWWKK..
+  ...KcbbbbbbBK...
+  ...KcbbbbbbBK...
+end
+
+# ---- facing up (away from the viewer): hair to the nape, plain collar, no buckle ----
+part top_up
+  ................
+  .....KKKKKK.....
+  ...KKhuuuhhKK...
+  ..KhuuuuuhhhhK..
+  .KhuuuhhhhhhhHK.
+  .KhuhhhhhhhhHHK.
+  .KhhuuhhhhhhHHK.
+  .KhuhhhhhHhhhHK.
+  .KhhhhhhhHhhHHK.
+  .KhhhhHhhhhhhHK.
+  .KHhhhHhhhhhHHK.
+  ..KHhhhhhhhHHK..
+  ..KsHHhhhhHHjK..
+  ...KjSSSSSSjK...
+  ....KKjjjjKK....
+  ..KKReeeeeeEKK..
+  .KReeeeeeeeeEEK.
+  .KRekeeeeeekeEK.
+  .KRekeeeeeekeEK.
+  .KRekeeeeeEkeEK.
+  .KsSkeeeeeEkSjK.
+  .KSjkEEEEEEkSjK.
+  ..KKWWWWWWWWKK..
+  ...KcbbbbbbBK...
+  ...KcbbbbbbBK...
+end
+
+# ---- facing right (left is this, flipped): hair at the back, eye at the front,
+# narrower torso with the near arm in front of it ----
+part top_right
+  ................
+  .....KKKKKK.....
+  ...KKhuuuhhKK...
+  ..KhuuuuuhhhhK..
+  .KhuuuhhhhhhhhK.
+  .KhuhhhhhhhhhHK.
+  .KhhhhhhhhhhhHK.
+  .KhhhhhhhhhHsSK.
+  .KhhhhhhhhsSSSK.
+  .KhhhhhSjSSSKSK.
+  .KHhhhhjjSSSKSK.
+  ..KHhhhSSSSSrSK.
+  ..KHhhjSSSSjjK..
+  ...KjjSSSSSjK...
+  ....KKjjjjKK....
+  ....KReRReEK....
+  ...KReeeeeeEK...
+  ...KReeeeeeEK...
+  ...KReeeeeeEK...
+  ...KReeeeeeEK...
+  ...KReeeeeeEK...
+  ...KEEEEEEEEK...
+  ...KKWWWWWoWKK..
+  ....KcbbbbBK....
+  ....KcbbbbBK....
+end
+
+# The near arm, stamped over the torso of top_right: it swings 1 px back or forward
+# against the legs (x 5 back, 6 centre, 7 forward), at the same height as the body.
+part arm_side
+  kRe
+  kRe
+  kRe
+  kSS
+  kSj
+end
+
+# Side legs: the near leg is lighter, the far leg darker.
+part legs_side_stand
+  ....KcbbbbBK....
+  ....KcbbbbBK....
+  ....KcbbbbBK....
+  ....KVwwwwWK....
+  ....KVwwwwwWK...
+  ....KKKKKKKKK...
+  ................
+end
+
+# Near leg forward (right), far leg back.
+part legs_side_a
+  ....KcbbbbBK....
+  ...KcbbKKbbBK...
+  ..KbbBK..KcbBK..
+  ..KWwWK..KVwwK..
+  .KWwwWK..KVwwwWK
+  .KKKKKK..KKKKKKK
+  ................
+end
+
+# Far leg forward (right), near leg back.
+part legs_side_b
+  ....KcbbbbBK....
+  ...KcbbKKbbBK...
+  ..KcbBK..KbbBK..
+  ..KVwWK..KWwwK..
+  .KVwwWK..KWwwwWK
+  .KKKKKK..KKKKKKK
+  ................
+end
+
+# ---- legs, front and back views ----
+part legs_stand
+  ...KcbbBKbbBK...
+  ...KcbbBKcbBK...
+  ...KcbbBKcbBK...
+  ...KVwwWKVwWK...
+  ..KVwwwWKVwwWK..
+  ..KKKKKKKKKKKK..
+  ................
+end
+
+# viewer's left leg forward (lower), right foot lifted
+part legs_l
+  ...KcbbBKbbBK...
+  ...KcbbBKcbBK...
+  ...KcbbBKVwWK...
+  ...KcbbBKVwwWK..
+  ...KVwwWKKKKKK..
+  ..KVwwwWK.......
+  ..KKKKKKK.......
+end
+
+# viewer's right leg forward (lower), left foot lifted
+part legs_r
+  ...KcbbBKbbBK...
+  ...KcbbBKcbBK...
+  ...KVwwWKcbBK...
+  ..KVwwwWKcbBK...
+  ..KKKKKKKVwWK...
+  ........KVwwWK..
+  ........KKKKKK..
+end
+
+# ---- frames ----
+# _0 passing/rest (legs together, body up); _1 and _2 contact (one leg forward, body down 1 px);
+# breathe_* idle out-breath (body down 1 px, legs still).
+frame down_0
+  stamp top_down 0 0
+  stamp legs_stand 0 25
+end
+frame down_1
+  stamp top_down 0 1
+  stamp legs_l 0 25
+end
+frame down_2
+  stamp top_down 0 1
+  stamp legs_r 0 25
+end
+frame breathe_down
+  stamp top_down 0 1
+  stamp legs_stand 0 25
+end
+
+frame up_0
+  stamp top_up 0 0
+  stamp legs_stand 0 25
+end
+frame up_1
+  stamp top_up 0 1
+  stamp legs_r 0 25
+end
+frame up_2
+  stamp top_up 0 1
+  stamp legs_l 0 25
+end
+frame breathe_up
+  stamp top_up 0 1
+  stamp legs_stand 0 25
+end
+
+frame right_0
+  stamp top_right 0 0
+  stamp arm_side 6 17
+  stamp legs_side_stand 0 25
+end
+frame right_1
+  stamp top_right 0 1
+  stamp arm_side 5 18
+  stamp legs_side_a 0 25
+end
+frame right_2
+  stamp top_right 0 1
+  stamp arm_side 7 18
+  stamp legs_side_b 0 25
+end
+frame breathe_right
+  stamp top_right 0 1
+  stamp arm_side 6 18
+  stamp legs_side_stand 0 25
+end
+
+# Left: the right frames mirrored (so lit from the top right).
+frame left_0 from right_0 flipx
+frame left_1 from right_1 flipx
+frame left_2 from right_2 flipx
+frame breathe_left from breathe_right flipx
+
+# ---- animations (idle_down first: the Godot scene autoplays the first one) ----
+anim idle_down fps 3 loop: down_0*3 breathe_down
+anim idle_up fps 3 loop: up_0*3 breathe_up
+anim walk_down fps 8 loop: down_1 down_0 down_2 down_0
+anim walk_up fps 8 loop: up_1 up_0 up_2 up_0
+anim idle_right fps 3 loop: right_0*3 breathe_right
+anim idle_left fps 3 loop: left_0*3 breathe_left
+anim walk_right fps 8 loop: right_1 right_0 right_2 right_0
+anim walk_left fps 8 loop: left_1 left_0 left_2 left_0
+
+# Colour variants: shirt (and hair) mapped shade for shade onto one ramp.
+variant farmer_green recolor R>L e>g E>G
+variant farmer_violet recolor R>N e>m E>M u>Y h>o H>O

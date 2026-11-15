@@ -98,4 +98,13 @@ class RendererTest {
                 () -> Renderer.render(Grid.of("KQ"), apple.palette()));
         assertTrue(e.getMessage().contains("'Q' at (1,0)"), e.getMessage());
     }
+
+    @Test
+    void translucentColoursKeepTheirAlpha() throws Exception {
+        pixelgen.model.Palette fx = pixelgen.parse.Palettes.load("fx", RESOURCES);
+        BufferedImage img = Renderer.render(Grid.of("~K."), fx);
+        assertEquals(0x55000000, img.getRGB(0, 0));
+        assertEquals(BLACK, img.getRGB(1, 0));
+        assertEquals(0, img.getRGB(2, 0) >>> 24);
+    }
 }

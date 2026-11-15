@@ -1,5 +1,7 @@
 package pixelgen.model;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,14 +15,36 @@ import java.util.Map;
  * @param anchorX  pivot point, for example the feet of a character; defaults to bottom centre
  * @param anchorY  pivot point y
  * @param parts    reusable pieces, in file order; each may have its own size
- * @param frames   full-size images, in file order
+ * @param frames   finished full-size images (stamps and recolours already applied), in file order
+ * @param variants recoloured copies of the whole sprite: variant name to symbol mapping
  * @param warnings non-fatal problems, such as a frame with no pixels
  */
 public record Sprite(String name, int width, int height, Palette palette, int anchorX, int anchorY,
-                     Map<String, Grid> parts, Map<String, Frame> frames, List<String> warnings) {
+                     Map<String, Grid> parts, Map<String, Frame> frames,
+                     Map<String, Map<Character, Character>> variants, List<String> warnings) {
 
-    /** One image of the sprite. Later steps add frames built from parts and other frames. */
+    /** One finished image of the sprite. */
     public record Frame(String name, Grid grid) {}
 
     public Frame frame(String name) { return frames.get(name); }
+
+    /** The variant as a sprite of its own: every part and frame recoloured, without further variants. */
+    public Sprite variant(String variantName) {
+        Map<Character, Character> map = variants.get(variantName);
+        if (map == null) throw new IllegalArgumentException("no variant '" + variantName + "'");
+        Map<String, Grid> newParts = new LinkedHashMap<>();
+        parts.forEach((n, g) -> newParts.put(n, g.recolor(map)));
+        Map<String, Frame> newFrames = new LinkedHashMap<>();
+        frames.forEach((n, f) -> newFrames.put(n, new Frame(n, f.grid().recolor(map))));
+        return new Sprite(variantName, width, height, palette, anchorX, anchorY, newParts, newFrames,
+                Map.of(), List.of());
+    }
+
+    /** This sprite followed by each of its variants. */
+    public List<Sprite> withVariants() {
+        List<Sprite> all = new ArrayList<>();
+        all.add(this);
+        for (String v : variants.keySet()) all.add(variant(v));
+        return all;
+    }
 }

@@ -25,6 +25,30 @@ class PaletteParserTest {
     }
 
     @Test
+    void translucentColoursKeepTheirAlpha() throws Exception {
+        Palette p = parse("ramp fx unordered\n ~ #1c152055 shadow\n K #1c1520\n");
+        Palette.Entry shadow = p.get('~');
+        assertEquals(0x1C1520, shadow.rgb());
+        assertEquals(0x55, shadow.alpha());
+        assertEquals(0x551C1520, shadow.argb());
+        assertTrue(shadow.translucent());
+        assertEquals("#1c152055", shadow.hex());
+        assertFalse(p.get('K').translucent());
+        assertEquals(List.of(), p.warnings(), "same rgb but different alpha is not a duplicate");
+        assertTrue(p.hasTranslucent());
+        assertTrue(p.isOpaque('K'));
+        assertFalse(p.isOpaque('~'));
+    }
+
+    @Test
+    void invisibleColoursAreRejectedAndTranslucentOnesBelongInUnorderedRamps() throws Exception {
+        assertOneErrorContaining("ramp a\n ~ #00000000\n K #000000\n", "t.pal:2: '~' has alpha 00, which is invisible");
+        List<String> w = parse("ramp a\n K #000000\n ~ #ffffff80\n").warnings();
+        assertTrue(w.stream().anyMatch(m -> m.contains("t.pal:3: '~' is translucent; put it in an unordered ramp")),
+                w.toString());
+    }
+
+    @Test
     void parsesTheSampleFile() throws Exception {
         Palette p = PaletteParser.parseFile(Path.of("src/test/resources/palettes/basic.pal"));
         assertEquals("basic", p.name());

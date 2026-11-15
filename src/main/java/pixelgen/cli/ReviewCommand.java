@@ -85,13 +85,15 @@ public final class ReviewCommand implements Cli.Command {
                 for (String error : e.errors()) SpriteFiles.printError(out, error);
                 continue;
             }
-            ReviewSheet.Result r = scale == null ? ReviewSheet.render(s) : ReviewSheet.render(s, scale);
-            Path dir = outDir.resolve(s.name());
-            Files.createDirectories(dir);
-            Path png = dir.resolve("review.png");
-            ImageIO.write(r.image(), "png", png.toFile());
-            out.println("wrote " + SpriteFiles.display(projectDir, png) + " (scale " + r.scale() + "x, "
-                    + r.image().getWidth() + "x" + r.image().getHeight() + ")");
+            for (Sprite sp : s.withVariants()) {  // each variant gets its own sheet
+                ReviewSheet.Result r = scale == null ? ReviewSheet.render(sp) : ReviewSheet.render(sp, scale);
+                Path dir = outDir.resolve(sp.name());
+                Files.createDirectories(dir);
+                Path png = dir.resolve("review.png");
+                ImageIO.write(r.image(), "png", png.toFile());
+                out.println("wrote " + SpriteFiles.display(projectDir, png) + " (scale " + r.scale() + "x, "
+                        + r.image().getWidth() + "x" + r.image().getHeight() + ")");
+            }
             for (String w : s.warnings()) out.println("     warning: " + w);
         }
         return failed == 0 ? 0 : 1;

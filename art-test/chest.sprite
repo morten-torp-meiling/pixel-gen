@@ -1,0 +1,25 @@
+# Art test: wooden chest with iron bands, top-down 3/4 view, light from the top left.
+# Round 3: lit lip on the lid front, short wood-grain dashes instead of blotches.
+sprite chest
+size 16 16
+palette farm
+anchor 8 15
+
+frame closed
+  ................
+  ................
+  ................
+  ..KKKKKKKKKKKK..
+  .KvZvvvvvvvvZVK.
+  .KVZVVVVVVVVZwK.
+  KvVZVVVVVVVVZVWK
+  KVwxwwYooOwwxwWK
+  KWWXWWoKoOWWXWWK
+  .KWXWWOOOOWWXWK.
+  .KVZwwwwwwwwZWK.
+  .KVxwWWwwwwwxWK.
+  .KVxwwwwwwWWxWK.
+  .KVZwwwwwwwwZWK.
+  .KWXWWWWWWWWXWK.
+  ..KKKKKKKKKKKK..
+end

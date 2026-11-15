@@ -1,0 +1,18 @@
+# Test palette with a translucent shadow colour: basic.pal plus an effects ramp.
+palette fx
+
+ramp grey
+  K  #000000  black
+  k  #555555
+  w  #ffffff  white
+
+ramp green
+  G  #1f4a1f  green dark
+  g  #4a9a3a  green
+
+ramp accents unordered
+  y  #ffe000  yellow
+  r  #c02020  red
+
+ramp effects unordered
+  ~  #00000055  shadow

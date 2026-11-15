@@ -14,8 +14,24 @@ public final class Palette {
     /** The character that means "no pixel" in every grid. It can never be a palette colour. */
     public static final char TRANSPARENT = '.';
 
-    /** One colour: the grid character, its 0xRRGGBB value, a descriptive name and its ramp. */
-    public record Entry(char symbol, int rgb, String name, String ramp) {}
+    /**
+     * One colour: the grid character, its 0xRRGGBB value, its opacity (1-255; 255 is opaque),
+     * a descriptive name and its ramp.
+     */
+    public record Entry(char symbol, int rgb, int alpha, String name, String ramp) {
+        public Entry(char symbol, int rgb, String name, String ramp) {
+            this(symbol, rgb, 255, name, ramp);
+        }
+
+        /** Packed 0xAARRGGBB, as used by images. */
+        public int argb() { return (alpha << 24) | (rgb & 0xFFFFFF); }
+
+        /** True for see-through colours such as a soft shadow. */
+        public boolean translucent() { return alpha < 255; }
+
+        /** {@code #rrggbb}, or {@code #rrggbbaa} for translucent colours. */
+        public String hex() { return Colors.toHex(rgb, alpha); }
+    }
 
     /**
      * A group of related colours. {@code ordered} ramps are expected to go from dark to light,
@@ -55,4 +71,22 @@ public final class Palette {
     public Entry get(char symbol) { return bySymbol.get(symbol); }
 
     public Map<Character, Entry> bySymbol() { return Collections.unmodifiableMap(bySymbol); }
+
+    /** The ramp with this name, or null. */
+    public Ramp ramp(String rampName) {
+        for (Ramp r : ramps) if (r.name().equals(rampName)) return r;
+        return null;
+    }
+
+    /** True when the symbol is a palette colour that is fully opaque. */
+    public boolean isOpaque(char symbol) {
+        Entry e = bySymbol.get(symbol);
+        return e != null && !e.translucent();
+    }
+
+    /** True when some colour is translucent. */
+    public boolean hasTranslucent() {
+        for (Entry e : bySymbol.values()) if (e.translucent()) return true;
+        return false;
+    }
 }

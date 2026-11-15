@@ -6,7 +6,7 @@ import pixelgen.model.Palette;
 import java.awt.image.BufferedImage;
 
 /**
- * Turns grids into images. Each grid cell becomes one pixel: fully opaque in its palette colour,
+ * Turns grids into images. Each grid cell becomes one pixel in its palette colour (with that colour's alpha),
  * or fully transparent for {@code '.'}. Scaling only ever repeats pixels (nearest neighbour), so
  * pixel art stays crisp.
  */
@@ -30,7 +30,7 @@ public final class Renderer {
                     throw new IllegalArgumentException("'" + c + "' at (" + x + "," + y + ") is not in palette '"
                             + palette.name() + "'");
                 }
-                img.setRGB(x, y, 0xFF000000 | e.rgb());
+                img.setRGB(x, y, e.argb());
             }
         }
         return img;

@@ -25,6 +25,21 @@ class ColorsTest {
     }
 
     @Test
+    void parsesHexWithOptionalAlpha() {
+        assertEquals(0xFF1C1520, Colors.parseHexWithAlpha("#1c1520"));
+        assertEquals(0x551C1520, Colors.parseHexWithAlpha("#1c152055"));
+        for (String bad : new String[] {"#1234567", "#123456789", "#1c1520zz", ""}) {
+            assertThrows(IllegalArgumentException.class, () -> Colors.parseHexWithAlpha(bad), bad);
+        }
+    }
+
+    @Test
+    void formatsAlphaOnlyWhenTranslucent() {
+        assertEquals("#1c1520", Colors.toHex(0x1C1520, 255));
+        assertEquals("#1c152055", Colors.toHex(0x1C1520, 0x55));
+    }
+
+    @Test
     void lightnessRunsFromBlackToWhite() {
         assertEquals(0.0, Colors.lightness(0x000000), 1e-6);
         assertEquals(1.0, Colors.lightness(0xFFFFFF), 1e-3);

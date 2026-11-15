@@ -1,0 +1,41 @@
+# Art test: farmer facing down (towards the viewer), 16x32, light from the top left.
+# Round 3: V-collar, soft dark lines (k) between arms and torso.
+sprite farmer
+size 16 32
+palette farm
+anchor 8 31
+
+frame down
+  ................
+  ................
+  .....KKKKKK.....
+  ...KKhuuuhhKK...
+  ..KhuuuuuhhhhK..
+  .KhuuuhhhhhhhHK.
+  .KhuhhhhhhhhHHK.
+  .KhhhhhHhhhhhHK.
+  .KhhsShhSShhhHK.
+  .KhsSSShSSSSjhK.
+  .KhsSKSSSSKSjhK.
+  .KHsSKSSSSKSjHK.
+  ..KsrSSSSSSrjK..
+  ..KsSSSjjSSjJK..
+  ...KjSSSSSSjK...
+  ....KKjjjjKK....
+  ..KKReRjjReEKK..
+  .KReeeeeeeeeEEK.
+  .KRekeeeeeekeEK.
+  .KRekRReeeekeEK.
+  .KRekeeeeeEkeEK.
+  .KsSkeeeeeEkSjK.
+  .KSjkEEEEEEkSjK.
+  ..KKWWWoOWWWKK..
+  ...KcbbbbbbBK...
+  ...KcbbbbbbBK...
+  ...KcbbBKbbBK...
+  ...KcbbBKcbBK...
+  ...KcbbBKcbBK...
+  ...KVwwWKVwWK...
+  ..KVwwwWKVwwWK..
+  ..KKKKKKKKKKKK..
+end

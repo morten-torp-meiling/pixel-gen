@@ -98,6 +98,15 @@ class RenderCommandTest {
     }
 
     @Test
+    void variantsAreRenderedIntoTheirOwnFolders() throws Exception {
+        Files.writeString(project.resolve("assets/two.sprite"),
+                "size 2 1\npalette basic\nframe a\nKw\nend\nvariant two_red recolor K>r\n");
+        assertEquals(0, run("assets/two.sprite"));
+        assertEquals(0xFF000000, read("preview/two/a.png").getRGB(0, 0));
+        assertEquals(0xFFC02020, read("preview/two_red/a.png").getRGB(0, 0));
+    }
+
+    @Test
     void usageErrors() throws Exception {
         assertEquals(2, run());
         assertEquals(2, run("assets", "--scale", "0"));

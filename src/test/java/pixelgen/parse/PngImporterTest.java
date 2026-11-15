@@ -127,4 +127,25 @@ class PngImporterTest {
     void exactMatchWinsOverNearestSearch() {
         assertEquals('k', PngImporter.nearest(0x555555, basic).symbol());
     }
+
+    @Test
+    void translucentPaletteColoursSurviveARoundTrip() throws Exception {
+        Palette fx = Palettes.load("fx", RESOURCES);
+        Grid g = Grid.of("..~~..", ".~KK~.", "..~~..");
+        PngImporter.Result r = PngImporter.importImage(Renderer.render(g, fx, 3), fx);
+        assertEquals(g, r.grid());
+        assertEquals(List.of(), r.mismatches());
+        assertEquals(0, r.semiTransparent());
+    }
+
+    @Test
+    void withTranslucentColoursOpacityIsMatchedToo() throws Exception {
+        Palette fx = Palettes.load("fx", RESOURCES);
+        // a 30% dark grey becomes the 33% shadow, a 2% pixel becomes nothing, an opaque one stays opaque
+        BufferedImage img = image(3, 1, 0x4D101010, 0x05000000, 0xFF010101);
+        PngImporter.Result r = PngImporter.importImage(img, fx);
+        assertEquals(Grid.of("~.K"), r.grid());
+        assertEquals(3, r.mismatches().size());
+        assertTrue(r.mismatches().stream().anyMatch(m -> m.symbol() == '.' && m.alpha() == 5));
+    }
 }

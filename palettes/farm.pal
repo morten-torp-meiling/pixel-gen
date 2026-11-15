@@ -71,3 +71,6 @@ ramp violet
 ramp light
   Q  #d8cfbf  cream
   q  #fbf5e6  white
+
+ramp effects unordered
+  ~  #1c152055  shadow (33% ink, drawn by the shadow effect)

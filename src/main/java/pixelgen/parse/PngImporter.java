@@ -14,7 +14,9 @@ import java.util.Map;
 /**
  * Converts an image into a grid of palette symbols, so existing art can be edited as text.
  * <ul>
- *   <li>Pixels with alpha below 128 become transparent ({@code '.'}); others count as opaque.</li>
+ *   <li>If the palette has no translucent colours, pixels with alpha below 128 become transparent
+ *       ({@code '.'}) and the rest count as opaque. If it has some, opacity is matched too:
+ *       a 33% black pixel becomes the palette's 33% shadow colour, and a nearly invisible one {@code '.'}.</li>
  *   <li>Each colour maps to the perceptually nearest palette colour (OKLab distance).</li>
  *   <li>An enlarged image (every pixel a solid N×N block) is shrunk back to 1:1 first.</li>
  * </ul>
@@ -26,8 +28,9 @@ public final class PngImporter {
 
     private PngImporter() {}
 
-    /** A source colour that had no exact palette match. */
-    public record Mismatch(int rgb, int pixels, char symbol, int paletteRgb, double distance) {
+    /** A source colour that had no exact palette match; symbol {@code .} means it became "no pixel". */
+    public record Mismatch(int rgb, int alpha, int pixels, char symbol, int paletteRgb, int paletteAlpha,
+                           double distance) {
         public boolean poor() { return distance > POOR_MATCH; }
     }
 
@@ -51,33 +54,46 @@ public final class PngImporter {
             throw new IllegalArgumentException("scale " + scale + " does not divide the image size "
                     + img.getWidth() + "x" + img.getHeight());
         }
+        boolean alphaAware = palette.hasTranslucent();
         int w = img.getWidth() / scale, h = img.getHeight() / scale;
-        Map<Integer, Integer> counts = new LinkedHashMap<>();  // opaque rgb -> pixel count
+        Map<Integer, Integer> counts = new LinkedHashMap<>();  // colour key (argb) -> pixel count
         int semi = 0;
-        int[][] argb = new int[h][w];
+        int[][] keys = new int[h][w];
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 // Sample the block's top-left pixel; detectScale guarantees uniform blocks.
                 int p = img.getRGB(x * scale, y * scale);
-                argb[y][x] = p;
                 int alpha = p >>> 24;
-                if (alpha < 128) continue;
-                if (alpha < 255) semi++;
-                counts.merge(p & 0xFFFFFF, 1, Integer::sum);
+                int key;
+                if (alphaAware) {
+                    key = alpha == 0 ? 0 : p;  // partial alpha is matched against translucent colours
+                } else if (alpha < 128) {
+                    key = 0;
+                } else {
+                    if (alpha < 255) semi++;
+                    key = 0xFF000000 | p;
+                }
+                keys[y][x] = key;
+                if (key != 0) counts.merge(key, 1, Integer::sum);
             }
         }
 
-        Map<Integer, Palette.Entry> mapping = new LinkedHashMap<>();
+        Map<Integer, Character> mapping = new LinkedHashMap<>();
         List<Mismatch> mismatches = new ArrayList<>();
         int exact = 0;
         for (Map.Entry<Integer, Integer> c : counts.entrySet()) {
-            Palette.Entry best = nearest(c.getKey(), palette);
-            mapping.put(c.getKey(), best);
-            if (best.rgb() == c.getKey()) {
+            int argb = c.getKey();
+            Palette.Entry best = alphaAware ? nearestWithAlpha(argb, palette) : nearest(argb & 0xFFFFFF, palette);
+            mapping.put(argb, best == null ? Palette.TRANSPARENT : best.symbol());
+            if (best != null && best.argb() == argb) {
                 exact++;
+            } else if (best == null) {
+                mismatches.add(new Mismatch(argb & 0xFFFFFF, argb >>> 24, c.getValue(), Palette.TRANSPARENT, 0, 0,
+                        cost(argb, 0, 0)));
             } else {
-                mismatches.add(new Mismatch(c.getKey(), c.getValue(), best.symbol(), best.rgb(),
-                        Colors.distance(c.getKey(), best.rgb())));
+                mismatches.add(new Mismatch(argb & 0xFFFFFF, argb >>> 24, c.getValue(), best.symbol(), best.rgb(),
+                        best.alpha(), alphaAware ? cost(argb, best.rgb(), best.alpha())
+                        : Colors.distance(argb & 0xFFFFFF, best.rgb())));
             }
         }
         mismatches.sort(Comparator.comparingInt(Mismatch::pixels).reversed());
@@ -86,8 +102,8 @@ public final class PngImporter {
         for (int y = 0; y < h; y++) {
             StringBuilder row = new StringBuilder(w);
             for (int x = 0; x < w; x++) {
-                int p = argb[y][x];
-                row.append((p >>> 24) < 128 ? Palette.TRANSPARENT : mapping.get(p & 0xFFFFFF).symbol());
+                int key = keys[y][x];
+                row.append(key == 0 ? Palette.TRANSPARENT : mapping.get(key));
             }
             rows.add(row.toString());
         }
@@ -99,6 +115,7 @@ public final class PngImporter {
         Palette.Entry best = null;
         double bestDistance = Double.MAX_VALUE;
         for (Palette.Entry e : palette.entries()) {
+            if (e.translucent()) continue;
             if (e.rgb() == rgb) return e;
             double d = Colors.distance(rgb, e.rgb());
             if (d < bestDistance) {
@@ -110,8 +127,32 @@ public final class PngImporter {
     }
 
     /**
+     * The palette colour closest to {@code argb} in colour and opacity, or null when "no pixel"
+     * is closer (a faint pixel). An exact match always wins.
+     */
+    public static Palette.Entry nearestWithAlpha(int argb, Palette palette) {
+        Palette.Entry best = null;
+        double bestCost = cost(argb, 0, 0);  // the cost of '.'
+        for (Palette.Entry e : palette.entries()) {
+            if (e.argb() == argb) return e;
+            double d = cost(argb, e.rgb(), e.alpha());
+            if (d < bestCost) {
+                bestCost = d;
+                best = e;
+            }
+        }
+        return best;
+    }
+
+    /** Colour distance plus opacity difference (0-1); opacity alone counts against "no pixel" (alpha 0). */
+    private static double cost(int argb, int rgb, int alpha) {
+        double alphaDiff = Math.abs((argb >>> 24) - alpha) / 255.0;
+        return alpha == 0 ? alphaDiff : Colors.distance(argb & 0xFFFFFF, rgb) + alphaDiff;
+    }
+
+    /**
      * The largest block size N such that the image consists of solid N×N blocks; 1 if none.
-     * Alpha below 128 counts as one "transparent" value, so enlarged transparency is recognised.
+     * Fully transparent pixels count as one value whatever their RGB, so enlarged transparency is recognised.
      */
     public static int detectScale(BufferedImage img) {
         int g = gcd(img.getWidth(), img.getHeight());
@@ -135,7 +176,7 @@ public final class PngImporter {
         return true;
     }
 
-    private static int normalise(int argb) { return (argb >>> 24) < 128 ? 0 : argb; }
+    private static int normalise(int argb) { return (argb >>> 24) == 0 ? 0 : argb; }
 
     private static int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
 

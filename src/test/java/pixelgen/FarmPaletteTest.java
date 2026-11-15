@@ -17,7 +17,16 @@ class FarmPaletteTest {
         Palette p = Palettes.load("farm", Path.of(""));
         assertEquals(List.of(), p.warnings());
         assertTrue(p.size() >= 32 && p.size() <= 48, "size " + p.size());
-        for (Palette.Ramp r : p.ramps()) assertTrue(r.ordered(), r.name() + " should be ordered");
+        for (Palette.Ramp r : p.ramps()) {
+            if (!r.name().equals("effects")) assertTrue(r.ordered(), r.name() + " should be ordered");
+        }
+    }
+
+    @Test
+    void shadowColourIsTranslucentInk() throws Exception {
+        Palette.Entry shadow = Palettes.load("farm", Path.of("")).get('~');
+        assertEquals("effects", shadow.ramp());
+        assertTrue(shadow.alpha() > 0x30 && shadow.alpha() < 0x80, "alpha " + shadow.alpha());
     }
 
     @Test

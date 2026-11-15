@@ -133,8 +133,9 @@ public final class ImportCommand implements Cli.Command {
                 r.grid().width(), r.grid().height(), r.scale());
         p.printf("colours: %d exact, %d replaced%n", r.exactColours(), r.mismatches().size());
         for (PngImporter.Mismatch m : r.mismatches()) {
-            p.printf(Locale.ROOT, "  %s (%d px) -> '%c' %s  distance %.3f%s%n", Colors.toHex(m.rgb()), m.pixels(),
-                    m.symbol(), Colors.toHex(m.paletteRgb()), m.distance(), m.poor() ? "  POOR MATCH" : "");
+            String target = m.symbol() == '.' ? "(no pixel)" : Colors.toHex(m.paletteRgb(), m.paletteAlpha());
+            p.printf(Locale.ROOT, "  %s (%d px) -> '%c' %s  distance %.3f%s%n", Colors.toHex(m.rgb(), m.alpha()),
+                    m.pixels(), m.symbol(), target, m.distance(), m.poor() ? "  POOR MATCH" : "");
         }
         if (r.semiTransparent() > 0) {
             p.println(r.semiTransparent() + " semi-transparent pixel(s) counted as opaque");

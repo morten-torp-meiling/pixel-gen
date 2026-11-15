@@ -179,12 +179,15 @@ public final class ReviewSheet {
         for (int py = 0; py < grid.height(); py++) {
             for (int px = 0; px < grid.width(); px++) {
                 char c = grid.at(px, py);
-                if (c == Palette.TRANSPARENT) {
+                Palette.Entry e = c == Palette.TRANSPARENT ? null : palette.get(c);
+                if (e == null || e.translucent()) {  // checkerboard, with see-through colours drawn over it
                     g.setColor(((px + py) & 1) == 0 ? CHECK_LIGHT : CHECK_DARK);
-                } else {
-                    g.setColor(new Color(palette.get(c).rgb()));
+                    g.fillRect(gx + px * s, gy + py * s, s, s);
                 }
-                g.fillRect(gx + px * s, gy + py * s, s, s);
+                if (e != null) {
+                    g.setColor(new Color(e.argb(), true));
+                    g.fillRect(gx + px * s, gy + py * s, s, s);
+                }
             }
         }
 

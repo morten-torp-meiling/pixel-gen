@@ -47,8 +47,9 @@ public final class ValidateCommand implements Cli.Command {
             String shown = SpriteFiles.display(projectDir, f);
             try {
                 Sprite s = SpriteParser.parseFile(f, shown, palettes);
-                out.printf("ok   %s (%dx%d, %d frames, %d parts, palette %s)%n", shown, s.width(), s.height(),
-                        s.frames().size(), s.parts().size(), s.palette().name());
+                out.printf("ok   %s (%dx%d, %d frames, %d parts, palette %s%s)%n", shown, s.width(), s.height(),
+                        s.frames().size(), s.parts().size(), s.palette().name(),
+                        s.variants().isEmpty() ? "" : ", variants " + String.join(" ", s.variants().keySet()));
                 for (String w : s.warnings()) out.println("     warning: " + w);
             } catch (ParseException e) {
                 failed++;

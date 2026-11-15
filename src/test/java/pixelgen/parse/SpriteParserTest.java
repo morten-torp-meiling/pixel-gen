@@ -204,7 +204,8 @@ class SpriteParserTest {
 
     @Test
     void emptyBlock() {
-        assertOneError(HEAD + "frame a\nend\n", "t.sprite:3: frame 'a' has no rows");
+        assertOneError(HEAD + "frame a\nend\n", "t.sprite:3: frame 'a' is empty; add grid rows or 'stamp' lines");
+        assertOneError(HEAD + "part p\nend\nframe a\nKKKK\nKKKK\nend\n", "t.sprite:3: part 'p' has no rows");
     }
 
     @Test

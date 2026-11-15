@@ -57,14 +57,14 @@ public final class PaletteSwatch {
                 for (int i = 0; i < ramp.entries().size(); i++) {
                     Palette.Entry e = ramp.entries().get(i);
                     int x = cellX(i);
-                    g.setColor(new Color(e.rgb()));
+                    g.setColor(new Color(e.argb(), true));
                     g.fillRect(x, y, CELL, CELL);
                     g.setColor(Colors.lightness(e.rgb()) < 0.6 ? Color.WHITE : Color.BLACK);
                     g.setFont(symbol);
                     centre(g, String.valueOf(e.symbol()), x, y + CELL / 2 + 8);
                     g.setColor(Color.BLACK);
                     g.setFont(hex);
-                    centre(g, Colors.toHex(e.rgb()), x, y + CELL + 13);
+                    centre(g, e.hex(), x, y + CELL + 13);
                 }
             }
         } finally {

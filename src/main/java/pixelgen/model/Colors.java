@@ -25,6 +25,25 @@ public final class Colors {
         return Integer.parseInt(s, 16);
     }
 
+    /** {@code #rrggbb}, or {@code #rrggbbaa} when {@code alpha} is below 255. */
+    public static String toHex(int rgb, int alpha) {
+        return alpha >= 255 ? toHex(rgb) : toHex(rgb) + String.format("%02x", alpha & 0xFF);
+    }
+
+    /**
+     * Parses {@code #rrggbb} (opaque) or {@code #rrggbbaa} into a packed 0xAARRGGBB int.
+     * Throws IllegalArgumentException otherwise.
+     */
+    public static int parseHexWithAlpha(String text) {
+        String s = text.startsWith("#") ? text.substring(1) : text;
+        if ((s.length() != 6 && s.length() != 8) || !s.chars().allMatch(c -> Character.digit(c, 16) >= 0)) {
+            throw new IllegalArgumentException("'" + text + "' is not a colour in the form #rrggbb or #rrggbbaa");
+        }
+        int rgb = Integer.parseInt(s.substring(0, 6), 16);
+        int alpha = s.length() == 8 ? Integer.parseInt(s.substring(6), 16) : 0xFF;
+        return (alpha << 24) | rgb;
+    }
+
     /** OKLab coordinates {L, a, b} of an sRGB colour. */
     public static double[] oklab(int rgb) {
         double r = linear(red(rgb)), g = linear(green(rgb)), b = linear(blue(rgb));

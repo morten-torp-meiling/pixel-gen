@@ -22,6 +22,7 @@ import java.util.Map;
  * ramp skin                  starts a ramp; colours below it belong to it
  *   J  #6b3a32  skin shadow  symbol, colour, optional name
  * ramp accents unordered     'unordered' turns off the dark-to-light check
+ *   ~  #1c152055  shadow     #rrggbbaa: translucent (aa = opacity, 01-fe); keep these in unordered ramps
  * </pre>
  *
  * Symbols are single printable ASCII characters other than {@code .} (transparent) and {@code #}.
@@ -107,11 +108,16 @@ public final class PaletteParser {
                         errors.add(where + "colour '" + symbol + "' has no value; expected '" + symbol + " #rrggbb'");
                         continue;
                     }
-                    int rgb;
+                    int argb;
                     try {
-                        rgb = Colors.parseHex(tokens[1]);
+                        argb = Colors.parseHexWithAlpha(tokens[1]);
                     } catch (IllegalArgumentException e) {
                         errors.add(where + e.getMessage());
+                        continue;
+                    }
+                    int rgb = argb & 0xFFFFFF, alpha = argb >>> 24;
+                    if (alpha == 0) {
+                        errors.add(where + "'" + symbol + "' has alpha 00, which is invisible; use '.' for no pixel");
                         continue;
                     }
                     if (rampName == null) {
@@ -126,12 +132,16 @@ public final class PaletteParser {
                     String colourName = tokens.length > 2
                             ? String.join(" ", List.of(tokens).subList(2, tokens.length))
                             : "";
-                    String owner = colourOwners.putIfAbsent(rgb, "'" + symbol + "'");
+                    String owner = colourOwners.putIfAbsent(argb, "'" + symbol + "'");
                     if (owner != null) {
-                        warnings.add(where + "'" + symbol + "' has the same colour " + Colors.toHex(rgb)
+                        warnings.add(where + "'" + symbol + "' has the same colour " + Colors.toHex(rgb, alpha)
                                 + " as " + owner);
                     }
-                    rampEntries.add(new Palette.Entry(symbol, rgb, colourName, rampName));
+                    if (alpha < 255 && rampOrdered && rampName != null && !rampName.equals("?")) {
+                        warnings.add(where + "'" + symbol + "' is translucent; put it in an unordered ramp, "
+                                + "since lightness steps don't apply to see-through colours");
+                    }
+                    rampEntries.add(new Palette.Entry(symbol, rgb, alpha, colourName, rampName));
                 }
             }
         }

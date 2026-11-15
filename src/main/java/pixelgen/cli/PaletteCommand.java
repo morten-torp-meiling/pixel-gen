@@ -54,7 +54,7 @@ public final class PaletteCommand implements Cli.Command {
         for (Palette.Ramp r : p.ramps()) {
             StringBuilder line = new StringBuilder();
             for (Palette.Entry e : r.entries()) {
-                line.append(String.format(Locale.ROOT, "  %c %s L=%.2f", e.symbol(), Colors.toHex(e.rgb()),
+                line.append(String.format(Locale.ROOT, "  %c %s L=%.2f", e.symbol(), e.hex(),
                         Colors.lightness(e.rgb())));
             }
             out.printf("  %-12s%s%s%n", r.name(), r.ordered() ? "" : " (unordered)", line);

@@ -87,24 +87,24 @@ public final class RenderCommand implements Cli.Command {
                 for (String error : e.errors()) SpriteFiles.printError(out, error);
                 continue;
             }
-            List<Sprite.Frame> frames;
-            if (onlyFrame == null) {
-                frames = List.copyOf(s.frames().values());
-            } else if (s.frame(onlyFrame) != null) {
-                frames = List.of(s.frame(onlyFrame));
-            } else {
+            if (onlyFrame != null && s.frame(onlyFrame) == null) {
                 failed++;
                 out.println("FAIL " + shown + ": no frame '" + onlyFrame + "' (frames: "
                         + String.join(", ", s.frames().keySet()) + ")");
                 continue;
             }
-            Path dir = outDir.resolve(s.name());
-            Files.createDirectories(dir);
-            for (Sprite.Frame fr : frames) {
-                Path png = dir.resolve(fr.name() + ".png");
-                ImageIO.write(Renderer.render(fr.grid(), s.palette(), scale), "png", png.toFile());
-                out.println("wrote " + SpriteFiles.display(projectDir, png)
-                        + (scale > 1 ? " (" + s.width() * scale + "x" + s.height() * scale + ")" : ""));
+            for (Sprite sp : s.withVariants()) {  // each variant gets its own folder
+                List<Sprite.Frame> frames = onlyFrame == null
+                        ? List.copyOf(sp.frames().values())
+                        : List.of(sp.frame(onlyFrame));
+                Path dir = outDir.resolve(sp.name());
+                Files.createDirectories(dir);
+                for (Sprite.Frame fr : frames) {
+                    Path png = dir.resolve(fr.name() + ".png");
+                    ImageIO.write(Renderer.render(fr.grid(), sp.palette(), scale), "png", png.toFile());
+                    out.println("wrote " + SpriteFiles.display(projectDir, png)
+                            + (scale > 1 ? " (" + sp.width() * scale + "x" + sp.height() * scale + ")" : ""));
+                }
             }
         }
         return failed == 0 ? 0 : 1;

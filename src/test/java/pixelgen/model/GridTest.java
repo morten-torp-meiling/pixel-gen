@@ -39,6 +39,50 @@ class GridTest {
     }
 
     @Test
+    void blankIsAllTransparent() {
+        assertEquals(Grid.of("...", "..."), Grid.blank(3, 2));
+    }
+
+    @Test
+    void stampPaintsOnlyVisibleCellsAtTheOffset() {
+        Grid base = Grid.of("wwww", "wwww", "wwww");
+        Grid part = Grid.of("K.", ".k");
+        assertEquals(Grid.of("wwww", "wKww", "wwkw"), base.stamp(part, 1, 1));
+        assertEquals(Grid.of("wwww", "wwww", "wwww"), base, "the original is unchanged");
+    }
+
+    @Test
+    void laterStampsCoverEarlierOnes() {
+        Grid g = Grid.blank(3, 1).stamp(Grid.of("KKK"), 0, 0).stamp(Grid.of("w"), 1, 0);
+        assertEquals(Grid.of("KwK"), g);
+    }
+
+    @Test
+    void stampsAreCutOffAtTheEdges() {
+        Grid g = Grid.blank(3, 2);
+        assertEquals(Grid.of("..K", "..."), g.stamp(Grid.of("KK"), 2, 0));
+        assertEquals(Grid.of("k..", "..."), g.stamp(Grid.of("K.", ".k"), -1, -1));
+        assertTrue(g.clips(Grid.of("KK"), 2, 0));
+        assertFalse(g.clips(Grid.of("KK"), 1, 0));
+        assertFalse(g.clips(Grid.of("K."), 2, 0), "only visible cells count");
+    }
+
+    @Test
+    void flipsMirrorTheGrid() {
+        Grid g = Grid.of("ab", "cd", "ef");
+        assertEquals(Grid.of("ba", "dc", "fe"), g.flipX());
+        assertEquals(Grid.of("ef", "cd", "ab"), g.flipY());
+        assertEquals(g, g.flipX().flipX());
+    }
+
+    @Test
+    void recolorSwapsAllAtOnce() {
+        Grid g = Grid.of("abc.");
+        assertEquals(Grid.of("bac."), g.recolor(java.util.Map.of('a', 'b', 'b', 'a')));
+        assertEquals(Grid.of("a.c."), g.recolor(java.util.Map.of('b', '.')));
+    }
+
+    @Test
     void equalityAndRowsRoundTrip() {
         Grid g = Grid.of("ab", "cd");
         assertEquals(g, new Grid(g.rows()));

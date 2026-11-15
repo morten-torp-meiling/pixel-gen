@@ -33,6 +33,82 @@ public final class Grid {
 
     public static Grid of(String... rows) { return new Grid(List.of(rows)); }
 
+    /** A fully transparent grid. */
+    public static Grid blank(int width, int height) {
+        return new Grid(java.util.Collections.nCopies(height, String.valueOf(Palette.TRANSPARENT).repeat(width)));
+    }
+
+    /** Wraps {@code cells} (row by row) without copying; for code in this package that builds grids. */
+    Grid(int width, int height, char[] cells) {
+        this.width = width;
+        this.height = height;
+        this.cells = cells;
+    }
+
+    /**
+     * Paints {@code part} with its top-left corner at (x, y). Transparent cells of the part leave
+     * this grid unchanged; anything outside this grid is cut off.
+     */
+    public Grid stamp(Grid part, int x, int y) {
+        char[] out = cells.clone();
+        for (int py = 0; py < part.height; py++) {
+            int ty = y + py;
+            if (ty < 0 || ty >= height) continue;
+            for (int px = 0; px < part.width; px++) {
+                int tx = x + px;
+                char c = part.cells[py * part.width + px];
+                if (tx < 0 || tx >= width || c == Palette.TRANSPARENT) continue;
+                out[ty * width + tx] = c;
+            }
+        }
+        return new Grid(width, height, out);
+    }
+
+    /** True when placing {@code part} at (x, y) leaves some of its visible cells outside this grid. */
+    public boolean clips(Grid part, int x, int y) {
+        for (int py = 0; py < part.height; py++) {
+            for (int px = 0; px < part.width; px++) {
+                if (part.cells[py * part.width + px] == Palette.TRANSPARENT) continue;
+                int tx = x + px, ty = y + py;
+                if (tx < 0 || ty < 0 || tx >= width || ty >= height) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Mirrored left to right. */
+    public Grid flipX() {
+        char[] out = new char[cells.length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) out[y * width + x] = cells[y * width + (width - 1 - x)];
+        }
+        return new Grid(width, height, out);
+    }
+
+    /** Mirrored top to bottom. */
+    public Grid flipY() {
+        char[] out = new char[cells.length];
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(cells, (height - 1 - y) * width, out, y * width, width);
+        }
+        return new Grid(width, height, out);
+    }
+
+    /**
+     * Replaces symbols all at once, so {@code a>b b>a} swaps them. Symbols not in the map are kept.
+     */
+    public Grid recolor(java.util.Map<Character, Character> map) {
+        char[] out = cells.clone();
+        for (int i = 0; i < out.length; i++) {
+            Character to = map.get(out[i]);
+            if (to != null) out[i] = to;
+        }
+        return new Grid(width, height, out);
+    }
+
+    /** A copy of the cells, row by row. */
+    char[] cells() { return cells.clone(); }
+
     public int width() { return width; }
 
     public int height() { return height; }

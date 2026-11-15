@@ -7,6 +7,7 @@ Reference for the three text formats pixel-gen reads and the one settings file:
 | `.pal` | a palette: every colour a sprite may use, grouped into ramps | `palettes/` |
 | `.sprite` | a sprite: parts, frames, animations and recoloured variants | `assets/**` |
 | `.tileset` | tiles for a Godot TileMapLayer, in the sprite format | `assets/**` |
+| `.mockup` | a small map of a tileset's tiles, to check how they fit together | next to the tileset |
 | `pixelgen.conf` | where `export` puts the files in the Godot project | project folder (git-ignored) |
 
 How to draw well in these formats is in [style-guide.md](style-guide.md); this file is only about what the tool accepts.
@@ -241,6 +242,30 @@ variant ground_autumn recolor g>o G>O
 
 `pg tilecheck` checks every edge pair a tile's `wrap` asks for. It compares how much neighbouring pixels differ **across** the seam with how much they differ **inside** the tile, so a textured tile isn't flagged for its texture. A seam fails when it differs more than twice as much as the inside, plus a small allowance (so a stray speck on an edge passes). It reports the rows or columns that don't match and draws `preview/<tileset>/tilecheck.png`, with each tile repeated 4×4 and failing seams marked in red.
 
+## Mock maps (`.mockup`)
+
+A small map made of a tileset's tiles, drawn by `pg mockup <file.tileset> <file.mockup>` to `preview/<tileset>/mockup-<name>.png`: enlarged with no lines between tiles (so seams show as in the game), and again at 1× and 2×. It's for checking that different tiles fit next to each other, which `tilecheck` can't see. Mock maps are never exported.
+
+```
+# A dirt patch in grass, with an inner corner.
+g = grass grass_b grass_c
+1 = dirt_corner_nw
+n = dirt_edge_n
+w = dirt_edge_w
+d = dirt
+i = dirt_inner_nw
+map
+  gggggggg
+  gggg1nnn
+  ggggwddd
+  1nnniddd
+  wddddddd
+```
+
+- **Legend lines** `<character> = <tile> [<tile> ...]` give a map character its tile. With several tiles, each cell picks one of them, the same way every time: that's how to see base-tile versions mixed.
+- **`map`** starts the map; every following line is a row, one character per tile, all rows equally wide (at most 64 × 64). `.` leaves a cell empty.
+- Options: `--variant <name>` draws a recoloured variant of the tileset; `--grid` adds faint lines between tiles; `--scale N` (default 4).
+
 ## Settings (`pixelgen.conf`)
 
 Read by `pg export` and `gradlew exportAssets`. It names a folder on one machine, so it's git-ignored: everyone writes their own.
@@ -264,6 +289,7 @@ scenes = true
 | `pg gif <...> [--anim a] [--scale N] [--bg #rrggbb\|none]` | sprites | `preview/<sprite>/<anim>.gif` |
 | `pg sheet <...> [--padding N] [--extrude N] [--list]` | sprites, tilesets | `preview/<sprite>/sheet.png` |
 | `pg tilecheck <...>` | tilesets | `preview/<tileset>/tilecheck.png`; exit 1 on a seam |
+| `pg mockup <file.tileset> <file.mockup> [--variant v] [--grid]` | a tileset and a mock map | `preview/<tileset>/mockup-<name>.png` |
 | `pg frames <...> [--res res://dir]` | sprites | `preview/godot/<sprite>.png` and `.tres`, to copy by hand |
 | `pg tiles <...> [--res res://dir]` | tilesets | `preview/godot/<tileset>.png` and `.tres`, to copy by hand |
 | `pg import <png> --palette p` | a PNG | `.sprite` text, nearest palette colours |

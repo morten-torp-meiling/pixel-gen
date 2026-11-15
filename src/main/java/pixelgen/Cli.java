@@ -1,5 +1,6 @@
 package pixelgen;
 
+import pixelgen.cli.ExportCommand;
 import pixelgen.cli.FramesCommand;
 import pixelgen.cli.GifCommand;
 import pixelgen.cli.ImportCommand;
@@ -62,6 +63,7 @@ public final class Cli {
         COMMANDS.put("frames", new FramesCommand(projectDir));
         COMMANDS.put("tilecheck", new TilecheckCommand(projectDir));
         COMMANDS.put("tiles", new TilesCommand(projectDir));
+        COMMANDS.put("export", new ExportCommand(projectDir));
         COMMANDS.put("import", new ImportCommand(projectDir));
     }
 

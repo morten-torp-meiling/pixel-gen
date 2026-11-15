@@ -37,3 +37,19 @@ tasks.test {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
+
+// Exports assets/ into the Godot project named in pixelgen.conf; the same as `pixel-gen export`.
+// Gradle skips it (UP-TO-DATE) while assets/, palettes/, pixelgen.conf and the tool are unchanged.
+// It can't see files deleted in the Godot project; `pixel-gen export` notices those itself.
+tasks.register<JavaExec>("exportAssets") {
+    group = "pixel-gen"
+    description = "Exports changed sprites and tilesets into the Godot project set in pixelgen.conf."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass = "pixelgen.Cli"
+    args("export")
+    workingDir = projectDir
+    inputs.files(fileTree("assets"), fileTree("palettes"), file("pixelgen.conf"))
+        .withPropertyName("sources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.file(layout.buildDirectory.file("pixelgen/export.state"))
+}

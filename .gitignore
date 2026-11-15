@@ -33,3 +33,6 @@ bin/
 build/
 .gradle/
 preview/
+
+# Names a Godot project on this machine; each person writes their own (see the export command).
+pixelgen.conf

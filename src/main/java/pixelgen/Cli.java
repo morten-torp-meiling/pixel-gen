@@ -1,6 +1,7 @@
 package pixelgen;
 
 import pixelgen.cli.PaletteCommand;
+import pixelgen.cli.ValidateCommand;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -45,6 +46,7 @@ public final class Cli {
         // Commands resolve relative paths (palettes/, assets/, preview/) against the current folder.
         Path projectDir = Path.of("").toAbsolutePath();
         COMMANDS.put("palette", new PaletteCommand(projectDir));
+        COMMANDS.put("validate", new ValidateCommand(projectDir));
     }
 
     private Cli() {}

@@ -66,4 +66,15 @@ class ReviewCommandTest {
         assertEquals(2, run("assets", "--scale", "0"));
         assertEquals(2, run("assets", "--zoom", "2"));
     }
+
+    @Test
+    void stripAndOnionWriteTheirOwnSheetsAndSkipSpritesWithoutAnims() throws Exception {
+        Files.writeString(project.resolve("assets/blink.sprite"),
+                "size 1 1\npalette basic\nframe on\nK\nend\nframe off\nw\nend\nanim blink fps 2 loop: on off\n");
+        assertEquals(0, run("assets", "--strip", "--onion"));
+        assertTrue(out().contains("wrote preview/blink/strip.png"), out());
+        assertTrue(out().contains("wrote preview/blink/onion.png"), out());
+        assertTrue(out().contains("skip assets/apple.sprite: no anims"), out());
+        assertFalse(Files.exists(project.resolve("preview/blink/review.png")), "only the modes asked for");
+    }
 }

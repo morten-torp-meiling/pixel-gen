@@ -43,8 +43,10 @@ public final class ReviewSheet {
     public static final Color PIXEL_LINE = new Color(0, 0, 0, 40);
     public static final Color MAJOR_LINE = new Color(40, 110, 255, 150);
     public static final Color ANCHOR = new Color(0xff2a7a);
-    private static final Color TEXT = new Color(0xf0f0f0);
-    private static final Color TEXT_DIM = new Color(0xa8a8a8);
+    /** Onion skin: the previous frame's solid pixels, where the current frame has none. */
+    public static final Color ONION = new Color(255, 40, 60, 110);
+    static final Color TEXT = new Color(0xf0f0f0);
+    static final Color TEXT_DIM = new Color(0xa8a8a8);
 
     /** The sheet plus where each enlarged grid was drawn, for tests and tools. */
     public record Result(BufferedImage image, int scale, Map<String, Rectangle> frameAreas,
@@ -176,29 +178,7 @@ public final class ReviewSheet {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         g.drawString(it.name + (isFrame ? "" : "  (" + grid.width() + "x" + grid.height() + ")"), it.x, it.y + 13);
 
-        for (int py = 0; py < grid.height(); py++) {
-            for (int px = 0; px < grid.width(); px++) {
-                char c = grid.at(px, py);
-                Palette.Entry e = c == Palette.TRANSPARENT ? null : palette.get(c);
-                if (e == null || e.translucent()) {  // checkerboard, with see-through colours drawn over it
-                    g.setColor(((px + py) & 1) == 0 ? CHECK_LIGHT : CHECK_DARK);
-                    g.fillRect(gx + px * s, gy + py * s, s, s);
-                }
-                if (e != null) {
-                    g.setColor(new Color(e.argb(), true));
-                    g.fillRect(gx + px * s, gy + py * s, s, s);
-                }
-            }
-        }
-
-        if (s >= 6) {  // pixel lines only where they leave the pixels readable
-            g.setColor(PIXEL_LINE);
-            for (int i = 1; i < grid.width(); i++) if (i % 8 != 0) g.fillRect(gx + i * s, gy, 1, h);
-            for (int i = 1; i < grid.height(); i++) if (i % 8 != 0) g.fillRect(gx, gy + i * s, w, 1);
-        }
-        g.setColor(MAJOR_LINE);
-        for (int i = 8; i < grid.width(); i += 8) g.fillRect(gx + i * s, gy, 1, h);
-        for (int i = 8; i < grid.height(); i += 8) g.fillRect(gx, gy + i * s, w, 1);
+        drawPixels(g, grid, palette, gx, gy, s, null);
 
         // Rulers: coordinates every 8 pixels (and the last one), centred on the pixel.
         g.setColor(TEXT_DIM);
@@ -209,13 +189,51 @@ public final class ReviewSheet {
         g.setColor(TEXT_DIM);
         g.drawRect(gx - 1, gy - 1, w + 1, h + 1);
 
-        if (isFrame) {
-            int ax = gx + sprite.anchorX() * s, ay = gy + sprite.anchorY() * s;
-            g.setColor(ANCHOR);
-            g.setStroke(new BasicStroke(2));
-            g.drawRect(ax + 1, ay + 1, s - 2, s - 2);
-            g.setStroke(new BasicStroke(1));
-        }
+        if (isFrame) drawAnchor(g, sprite, gx, gy, s);
         return new Rectangle(gx, gy, w, h);
+    }
+
+    /** Outlines the anchor pixel of a frame drawn at (gx, gy). */
+    static void drawAnchor(Graphics2D g, Sprite sprite, int gx, int gy, int s) {
+        int ax = gx + sprite.anchorX() * s, ay = gy + sprite.anchorY() * s;
+        g.setColor(ANCHOR);
+        g.setStroke(new BasicStroke(2));
+        g.drawRect(ax + 1, ay + 1, s - 2, s - 2);
+        g.setStroke(new BasicStroke(1));
+    }
+
+    /**
+     * Draws a grid enlarged {@code s} times at (gx, gy): a checkerboard where it is empty or
+     * see-through, faint pixel lines and a blue line every 8 pixels. With an {@code onion} grid,
+     * its solid pixels show in {@link #ONION} wherever this grid has no solid pixel.
+     */
+    static void drawPixels(Graphics2D g, Grid grid, Palette palette, int gx, int gy, int s, Grid onion) {
+        int w = grid.width() * s, h = grid.height() * s;
+        for (int py = 0; py < grid.height(); py++) {
+            for (int px = 0; px < grid.width(); px++) {
+                char c = grid.at(px, py);
+                Palette.Entry e = c == Palette.TRANSPARENT ? null : palette.get(c);
+                if (e == null || e.translucent()) {  // checkerboard, with see-through colours drawn over it
+                    g.setColor(((px + py) & 1) == 0 ? CHECK_LIGHT : CHECK_DARK);
+                    g.fillRect(gx + px * s, gy + py * s, s, s);
+                    if (onion != null && palette.isOpaque(onion.at(px, py))) {
+                        g.setColor(ONION);
+                        g.fillRect(gx + px * s, gy + py * s, s, s);
+                    }
+                }
+                if (e != null) {
+                    g.setColor(new Color(e.argb(), true));
+                    g.fillRect(gx + px * s, gy + py * s, s, s);
+                }
+            }
+        }
+        if (s >= 6) {  // pixel lines only where they leave the pixels readable
+            g.setColor(PIXEL_LINE);
+            for (int i = 1; i < grid.width(); i++) if (i % 8 != 0) g.fillRect(gx + i * s, gy, 1, h);
+            for (int i = 1; i < grid.height(); i++) if (i % 8 != 0) g.fillRect(gx, gy + i * s, w, 1);
+        }
+        g.setColor(MAJOR_LINE);
+        for (int i = 8; i < grid.width(); i += 8) g.fillRect(gx + i * s, gy, 1, h);
+        for (int i = 8; i < grid.height(); i += 8) g.fillRect(gx, gy + i * s, w, 1);
     }
 }

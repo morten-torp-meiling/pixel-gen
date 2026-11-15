@@ -2,6 +2,7 @@ package pixelgen;
 
 import pixelgen.cli.PaletteCommand;
 import pixelgen.cli.RenderCommand;
+import pixelgen.cli.ReviewCommand;
 import pixelgen.cli.ValidateCommand;
 
 import java.io.PrintStream;
@@ -49,6 +50,7 @@ public final class Cli {
         COMMANDS.put("palette", new PaletteCommand(projectDir));
         COMMANDS.put("validate", new ValidateCommand(projectDir));
         COMMANDS.put("render", new RenderCommand(projectDir));
+        COMMANDS.put("review", new ReviewCommand(projectDir));
     }
 
     private Cli() {}

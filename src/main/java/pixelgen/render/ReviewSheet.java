@@ -208,6 +208,12 @@ public final class ReviewSheet {
      * its solid pixels show in {@link #ONION} wherever this grid has no solid pixel.
      */
     static void drawPixels(Graphics2D g, Grid grid, Palette palette, int gx, int gy, int s, Grid onion) {
+        drawPixels(g, grid, palette, gx, gy, s, onion, true);
+    }
+
+    /** As above; without {@code guides}, no pixel or 8 px lines, to see the art as the game shows it. */
+    static void drawPixels(Graphics2D g, Grid grid, Palette palette, int gx, int gy, int s, Grid onion,
+                           boolean guides) {
         int w = grid.width() * s, h = grid.height() * s;
         for (int py = 0; py < grid.height(); py++) {
             for (int px = 0; px < grid.width(); px++) {
@@ -227,6 +233,7 @@ public final class ReviewSheet {
                 }
             }
         }
+        if (!guides) return;
         if (s >= 6) {  // pixel lines only where they leave the pixels readable
             g.setColor(PIXEL_LINE);
             for (int i = 1; i < grid.width(); i++) if (i % 8 != 0) g.fillRect(gx + i * s, gy, 1, h);

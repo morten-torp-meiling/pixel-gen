@@ -6,6 +6,8 @@ import pixelgen.cli.ImportCommand;
 import pixelgen.cli.PaletteCommand;
 import pixelgen.cli.RenderCommand;
 import pixelgen.cli.SheetCommand;
+import pixelgen.cli.TilecheckCommand;
+import pixelgen.cli.TilesCommand;
 import pixelgen.cli.ReviewCommand;
 import pixelgen.cli.ValidateCommand;
 
@@ -58,6 +60,8 @@ public final class Cli {
         COMMANDS.put("gif", new GifCommand(projectDir));
         COMMANDS.put("sheet", new SheetCommand(projectDir));
         COMMANDS.put("frames", new FramesCommand(projectDir));
+        COMMANDS.put("tilecheck", new TilecheckCommand(projectDir));
+        COMMANDS.put("tiles", new TilesCommand(projectDir));
         COMMANDS.put("import", new ImportCommand(projectDir));
     }
 

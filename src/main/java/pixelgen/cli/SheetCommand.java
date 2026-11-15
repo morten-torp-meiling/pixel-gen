@@ -4,7 +4,6 @@ import pixelgen.Cli;
 import pixelgen.model.Sprite;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
-import pixelgen.parse.SpriteParser;
 import pixelgen.render.SheetPacker;
 
 import javax.imageio.ImageIO;
@@ -83,7 +82,7 @@ public final class SheetCommand implements Cli.Command {
             return 1;
         }
         if (files.isEmpty()) {
-            err.println("no .sprite files found in " + String.join(", ", targets));
+            err.println(SpriteFiles.noneFound(SpriteFiles.ALL, targets));
             return 1;
         }
 
@@ -94,7 +93,7 @@ public final class SheetCommand implements Cli.Command {
             Sprite s;
             SheetPacker.Layout layout;
             try {
-                s = SpriteParser.parseFile(f, shown, palettes);
+                s = SpriteFiles.load(f, shown, palettes);
                 layout = SheetPacker.layout(s, padding, extrude);
             } catch (ParseException e) {
                 failed++;

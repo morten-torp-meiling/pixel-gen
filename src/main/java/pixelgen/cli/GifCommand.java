@@ -85,13 +85,13 @@ public final class GifCommand implements Cli.Command {
 
         List<Path> files;
         try {
-            files = SpriteFiles.collect(projectDir, targets);
+            files = SpriteFiles.collect(projectDir, targets, SpriteFiles.SPRITES);
         } catch (NoSuchFileException e) {
             err.println("not found: " + e.getFile());
             return 1;
         }
         if (files.isEmpty()) {
-            err.println("no .sprite files found in " + String.join(", ", targets));
+            err.println(SpriteFiles.noneFound(SpriteFiles.SPRITES, targets));
             return 1;
         }
 

@@ -1,0 +1,31 @@
+# Golden-file sample for the Godot TileSet export and the seam check.
+tileset ground
+size 4 4
+palette basic
+columns 3
+
+# Specks placed so every edge meets its opposite edge.
+tile grass
+gGgg
+ggGg
+Gggg
+gggG
+end
+
+tile grass_b from grass flipx
+
+# A dark top band: repeats sideways only, like the top edge of a path.
+tile edge wrap x
+GGGG
+gggg
+gggg
+gggg
+end
+
+# Light to dark from left to right: where copies meet, dark jumps back to light.
+tile seam
+wwkK
+wwkK
+wwkK
+wwkK
+end

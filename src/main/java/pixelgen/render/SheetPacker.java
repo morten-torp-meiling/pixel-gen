@@ -43,13 +43,7 @@ public final class SheetPacker {
                          Map<String, Rectangle> frames) {}
 
     public static Layout layout(Sprite sprite, int padding, int extrude) {
-        if (padding < 0 || padding > MAX_PADDING) {
-            throw new IllegalArgumentException("padding must be between 0 and " + MAX_PADDING);
-        }
-        if (extrude < 0 || extrude * 2 > padding) {
-            throw new IllegalArgumentException("extrude must be between 0 and half the padding, so neighbours"
-                    + " don't overlap (padding " + padding + " allows up to " + padding / 2 + ")");
-        }
+        checkSpacing(padding, extrude);
         List<Row> rows = new ArrayList<>();
         Set<String> placed = new LinkedHashSet<>();
         for (Anim a : sprite.anims().values()) {
@@ -62,7 +56,35 @@ public final class SheetPacker {
         List<String> rest = new ArrayList<>();
         for (String f : sprite.frames().keySet()) if (!placed.contains(f)) rest.add(f);
         if (!rest.isEmpty()) rows.add(new Row(null, rest));
+        return place(sprite, rows, padding, extrude);
+    }
 
+    /**
+     * A plain grid for tile atlases: every frame in file order, {@code columns} per row, so a
+     * tile's atlas coordinates are its column and row.
+     */
+    public static Layout grid(Sprite sprite, int columns, int padding, int extrude) {
+        checkSpacing(padding, extrude);
+        if (columns < 1) throw new IllegalArgumentException("columns must be at least 1");
+        List<String> names = new ArrayList<>(sprite.frames().keySet());
+        List<Row> rows = new ArrayList<>();
+        for (int i = 0; i < names.size(); i += columns) {
+            rows.add(new Row(null, List.copyOf(names.subList(i, Math.min(names.size(), i + columns)))));
+        }
+        return place(sprite, rows, padding, extrude);
+    }
+
+    private static void checkSpacing(int padding, int extrude) {
+        if (padding < 0 || padding > MAX_PADDING) {
+            throw new IllegalArgumentException("padding must be between 0 and " + MAX_PADDING);
+        }
+        if (extrude < 0 || extrude * 2 > padding) {
+            throw new IllegalArgumentException("extrude must be between 0 and half the padding, so neighbours"
+                    + " don't overlap (padding " + padding + " allows up to " + padding / 2 + ")");
+        }
+    }
+
+    private static Layout place(Sprite sprite, List<Row> rows, int padding, int extrude) {
         // Extrusion lives inside the padding: each side of a gap gets at most half of it.
         int stepX = sprite.width() + padding, stepY = sprite.height() + padding;
         Map<String, Rectangle> frames = new LinkedHashMap<>();

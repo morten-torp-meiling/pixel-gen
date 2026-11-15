@@ -4,7 +4,6 @@ import pixelgen.Cli;
 import pixelgen.model.Sprite;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
-import pixelgen.parse.SpriteParser;
 import pixelgen.render.AnimSheet;
 import pixelgen.render.Renderer;
 import pixelgen.render.ReviewSheet;
@@ -84,7 +83,7 @@ public final class ReviewCommand implements Cli.Command {
             return 1;
         }
         if (files.isEmpty()) {
-            err.println("no .sprite files found in " + String.join(", ", targets));
+            err.println(SpriteFiles.noneFound(SpriteFiles.ALL, targets));
             return 1;
         }
 
@@ -94,7 +93,7 @@ public final class ReviewCommand implements Cli.Command {
             String shown = SpriteFiles.display(projectDir, f);
             Sprite s;
             try {
-                s = SpriteParser.parseFile(f, shown, palettes);
+                s = SpriteFiles.load(f, shown, palettes);
             } catch (ParseException e) {
                 failed++;
                 out.println("FAIL " + shown);

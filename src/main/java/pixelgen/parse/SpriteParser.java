@@ -854,7 +854,7 @@ public final class SpriteParser {
     }
 
     /** Orders messages by their line number; messages about the whole file come first. Stable. */
-    private static List<String> sortByLine(List<String> messages, String source) {
+    static List<String> sortByLine(List<String> messages, String source) {
         String prefix = source + ":";
         return messages.stream().sorted(Comparator.comparingInt(m -> {
             if (!m.startsWith(prefix)) return 0;

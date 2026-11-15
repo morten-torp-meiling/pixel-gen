@@ -81,6 +81,18 @@ class SheetPackerTest {
     }
 
     @Test
+    void gridPutsFramesInFileOrderColumnsPerRow() throws Exception {
+        SheetPacker.Layout l = SheetPacker.grid(sprite(TEXT), 3, 1, 0);
+        assertEquals(List.of(new SheetPacker.Row(null, List.of("a", "b", "c")), new SheetPacker.Row(null, List.of("d"))),
+                l.rows());
+        assertEquals(new Rectangle(7, 1, 2, 2), l.frames().get("c"));
+        assertEquals(new Rectangle(1, 4, 2, 2), l.frames().get("d"));
+        assertEquals(10, l.width());
+        assertEquals(7, l.height());
+        assertThrows(IllegalArgumentException.class, () -> SheetPacker.grid(sprite(TEXT), 0, 0, 0));
+    }
+
+    @Test
     void badPaddingOrExtrude() throws Exception {
         Sprite s = sprite(TEXT);
         assertThrows(IllegalArgumentException.class, () -> SheetPacker.layout(s, -1, 0));

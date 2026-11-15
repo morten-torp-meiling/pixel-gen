@@ -71,6 +71,6 @@ class ValidateCommandTest {
         assertEquals(1, run("nowhere"));
         assertTrue(err().contains("not found: nowhere"), err());
         assertEquals(1, run("palettes"));
-        assertTrue(err().contains("no .sprite files found"), err());
+        assertTrue(err().contains("no .sprite or .tileset files found"), err());
     }
 }

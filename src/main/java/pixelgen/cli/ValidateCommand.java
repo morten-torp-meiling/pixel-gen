@@ -8,11 +8,9 @@ import pixelgen.parse.SpriteParser;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * {@code validate [file|folder ...]} checks sprite files and reports every error with its line.
@@ -31,19 +29,12 @@ public final class ValidateCommand implements Cli.Command {
 
     public int run(List<String> args, PrintStream out, PrintStream err) throws IOException {
         List<String> targets = args.isEmpty() ? List.of("assets") : args;
-        List<Path> files = new ArrayList<>();
-        for (String t : targets) {
-            Path p = projectDir.resolve(t);
-            if (Files.isDirectory(p)) {
-                try (Stream<Path> s = Files.walk(p)) {
-                    s.filter(f -> f.toString().endsWith(".sprite")).sorted().forEach(files::add);
-                }
-            } else if (Files.isRegularFile(p)) {
-                files.add(p);
-            } else {
-                err.println("not found: " + t);
-                return 1;
-            }
+        List<Path> files;
+        try {
+            files = SpriteFiles.collect(projectDir, targets);
+        } catch (NoSuchFileException e) {
+            err.println("not found: " + e.getFile());
+            return 1;
         }
         if (files.isEmpty()) {
             err.println("no .sprite files found in " + String.join(", ", targets));
@@ -53,7 +44,7 @@ public final class ValidateCommand implements Cli.Command {
         PaletteResolver palettes = PaletteResolver.cached(projectDir);
         int failed = 0;
         for (Path f : files) {
-            String shown = display(f);
+            String shown = SpriteFiles.display(projectDir, f);
             try {
                 Sprite s = SpriteParser.parseFile(f, shown, palettes);
                 out.printf("ok   %s (%dx%d, %d frames, %d parts, palette %s)%n", shown, s.width(), s.height(),
@@ -62,17 +53,10 @@ public final class ValidateCommand implements Cli.Command {
             } catch (ParseException e) {
                 failed++;
                 out.println("FAIL " + shown);
-                for (String error : e.errors()) out.println("     " + error.replace("\n", "\n     "));
+                for (String error : e.errors()) SpriteFiles.printError(out, error);
             }
         }
         out.printf("%d file(s) checked, %d with errors%n", files.size(), failed);
         return failed == 0 ? 0 : 1;
-    }
-
-    /** Project-relative path with forward slashes, so messages are short and stable. */
-    private String display(Path f) {
-        Path abs = f.toAbsolutePath().normalize();
-        Path base = projectDir.toAbsolutePath().normalize();
-        return (abs.startsWith(base) ? base.relativize(abs) : abs).toString().replace('\\', '/');
     }
 }

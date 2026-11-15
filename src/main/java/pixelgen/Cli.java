@@ -4,6 +4,7 @@ import pixelgen.cli.GifCommand;
 import pixelgen.cli.ImportCommand;
 import pixelgen.cli.PaletteCommand;
 import pixelgen.cli.RenderCommand;
+import pixelgen.cli.SheetCommand;
 import pixelgen.cli.ReviewCommand;
 import pixelgen.cli.ValidateCommand;
 
@@ -54,6 +55,7 @@ public final class Cli {
         COMMANDS.put("render", new RenderCommand(projectDir));
         COMMANDS.put("review", new ReviewCommand(projectDir));
         COMMANDS.put("gif", new GifCommand(projectDir));
+        COMMANDS.put("sheet", new SheetCommand(projectDir));
         COMMANDS.put("import", new ImportCommand(projectDir));
     }
 

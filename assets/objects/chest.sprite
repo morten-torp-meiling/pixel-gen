@@ -1,0 +1,53 @@
+# Wooden storage chest with iron bands and a gold lock, top-down 3/4 view, light from the top left.
+# Two states: closed, and open with the lid tipped back on its hinge.
+sprite chest
+size 16 16
+palette farm
+anchor 8 15
+
+# Lower front of the body, the same in both states.
+part body
+  ..KVZwoOOOwxWK..
+  ..KVZwWWwwwxWK..
+  ..KVZwwwwWWxWK..
+  ..KVZWWwwwwxWK..
+  ..KKKKKKKKKKKK..
+end
+
+# Closed lid: top, lit lip, front, and the dark row under its overhang.
+# The lock plate crosses the seam between lid and body.
+part lid_closed
+  ..KKKKKKKKKKKK..
+  .KvVZVVVVvvZVwK.
+  .KvVZVvvVVVZVwK.
+  .KvvzvvvvvvZvVK.
+  .KVwZwwwwwwxwWK.
+  .KVwZwyYYowxwWK.
+  ..KWXWYkYOWXWK..
+end
+
+# Open: the lid tipped back shows its edge and inner face; below it the box
+# shows its back rim, the dark inside and the lit front rim.
+part lid_open
+  ..KKKKKKKKKKKK..
+  .KvvzvyYYovZvVK.
+  .KVwwwwwwwwwwWK.
+  .KVwwWWwwwwwWWK.
+  .KKVVVVVVVVVwKK.
+  ..KvkkkkkkWWVK..
+  ..KvkkkkkkkWVK..
+  ..KvzvvvvvvZVK..
+  ..KVZwYkYOwxWK..
+end
+
+frame closed
+  stamp lid_closed 0 3
+  stamp body 0 10
+end
+
+frame open
+  stamp lid_open 0 1
+  stamp body 0 10
+end
+
+shadow ~ 14 3

@@ -1,0 +1,75 @@
+# Carrot crop in four growth stages, top-down 3/4 view, light from the top left.
+# Each stage grows out of the same soil mound; the outline is added automatically,
+# so leaf masses stay solid (any gap inside them would fill with outline).
+sprite carrot
+size 16 16
+palette farm
+anchor 8 15
+
+# A low mound of loose soil, lit on its top left.
+part mound
+  .tTTddddD.
+  TTdddddDDD
+end
+
+# Just planted: two seed leaves.
+part leaves_0
+  L.L
+  .g.
+end
+
+part leaves_1
+  L...L
+  gL.Lg
+  .gLg.
+  ..G..
+end
+
+part leaves_2
+  Lg..L..Lg
+  LgG.Lg.gG
+  .LgGLgGgG
+  .LggLggG.
+  ..GgggGG.
+  ...GGG...
+end
+
+# Ready to pull: tall fronds and the orange top showing above the soil.
+part leaves_3
+  Lg..lLg..Lg
+  LgG.LLgG.gG
+  .LgGLggGLgG
+  .LggLgGgLgG
+  ..LgggGggG.
+  ...GgGgGG..
+  ....GGG....
+end
+
+part root_top
+  .rRRe.
+  rRRRRe
+  rRRReE
+end
+
+frame stage_0
+  stamp mound 3 13
+  stamp leaves_0 7 11
+end
+
+frame stage_1
+  stamp mound 3 13
+  stamp leaves_1 6 9
+end
+
+frame stage_2
+  stamp mound 3 13
+  stamp leaves_2 4 7
+end
+
+frame stage_3
+  stamp leaves_3 3 3
+  stamp root_top 5 10
+  stamp mound 3 13
+end
+
+outline K selective

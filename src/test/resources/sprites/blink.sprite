@@ -1,0 +1,18 @@
+# Golden-file sample for the Godot SpriteFrames export.
+size 2 1
+palette basic
+frame on
+KK
+end
+frame off
+ww
+end
+frame dim
+Kw
+end
+# In no animation: becomes a one-frame animation.
+frame lit
+rr
+end
+anim blink fps 2 loop: on off*1.5
+anim fade fps 8 once: off dim

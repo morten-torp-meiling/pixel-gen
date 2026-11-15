@@ -1,0 +1,15 @@
+# Small test palette: two ordered ramps and one unordered ramp.
+palette basic
+
+ramp grey
+  K  #000000  black
+  k  #555555
+  w  #ffffff  white
+
+ramp green
+  G  #1f4a1f  green dark
+  g  #4a9a3a  green
+
+ramp accents unordered
+  y  #ffe000  yellow
+  r  #c02020  red

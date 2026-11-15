@@ -1,6 +1,9 @@
 package pixelgen;
 
+import pixelgen.cli.PaletteCommand;
+
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,9 @@ public final class Cli {
                 return 0;
             }
         });
+        // Commands resolve relative paths (palettes/, assets/, preview/) against the current folder.
+        Path projectDir = Path.of("").toAbsolutePath();
+        COMMANDS.put("palette", new PaletteCommand(projectDir));
     }
 
     private Cli() {}

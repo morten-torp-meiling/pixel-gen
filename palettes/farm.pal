@@ -1,0 +1,73 @@
+# farm - the default palette for pixel-gen: a warm, cozy farming look for a top-down 3/4 view.
+# Every ramp goes from dark to light. Shadows lean cool or purple and highlights lean warm,
+# which keeps shading lively instead of muddy.
+# '.' is always transparent and can't be used as a colour symbol.
+palette farm
+
+ramp ink
+  K  #1c1520  outline
+  k  #3d2a35  soft outline
+
+ramp skin
+  J  #6b3a32  skin deep shadow
+  j  #a85d45  skin shadow
+  S  #d98a64  skin
+  s  #f2bf94  skin light
+
+ramp hair
+  H  #3b2420  hair dark
+  h  #6b3f2c  hair
+  u  #9c6a42  hair light
+
+ramp wood
+  W  #4a2c25  wood dark
+  w  #7a4a32  wood
+  V  #a8704a  wood light
+  v  #d1a06b  wood highlight
+
+ramp soil
+  D  #3a2a2a  soil dark
+  d  #5e4236  soil
+  T  #86604a  soil light
+  t  #ad8862  sand
+
+ramp leaf
+  F  #1f3d32  leaf deepest
+  G  #2f6140  leaf dark
+  g  #4a8a3e  leaf
+  L  #7db547  leaf light
+  l  #b8d96b  leaf highlight
+
+ramp stone
+  X  #3b3d4a  stone dark
+  x  #5f6370  stone
+  Z  #8c909a  stone light
+  z  #c2c3c4  stone highlight
+
+ramp water
+  B  #1f3a5e  water deep
+  b  #2e6a8f  water
+  c  #4fa3b8  water light
+  C  #9fdce0  water foam
+
+ramp red
+  E  #6b1f2c  red dark
+  e  #a8323a  red
+  R  #d9583e  red light
+  r  #f08a5d  coral
+
+ramp gold
+  O  #8a5a1a  gold dark
+  o  #c98f2a  gold
+  Y  #ecc94b  yellow
+  y  #f7ec9c  yellow light
+
+ramp violet
+  M  #3e2a55  violet dark
+  m  #6a4a8a  violet
+  N  #9c7ac2  violet light
+  n  #d1b8e8  lavender
+
+ramp light
+  Q  #d8cfbf  cream
+  q  #fbf5e6  white

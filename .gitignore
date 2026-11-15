@@ -32,3 +32,4 @@ bin/
 ### pixel-gen ###
 build/
 .gradle/
+preview/

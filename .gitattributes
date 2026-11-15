@@ -1,0 +1,6 @@
+# Keep the Unix wrapper script runnable and Windows scripts in CRLF
+/gradlew        text eol=lf
+*.bat           text eol=crlf
+*.jar           binary
+*.png           binary
+*.gif           binary

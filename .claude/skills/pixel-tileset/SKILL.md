@@ -46,17 +46,12 @@ corner_sw   edge_s    corner_se
 
 Order the file so the atlas reads like this picture: with `columns 4`, the rows `corner_nw edge_n corner_ne inner_nw`, `edge_w dirt edge_e inner_ne`, `corner_sw edge_s corner_se inner_sw`, `grass grass_b grass_c inner_se`. That makes picking tiles in Godot easy.
 
-**How to draw them:**
-- **Textures are parts.** Put each base texture in a part (`part grass_tex`, `part dirt_tex`) and make the base tile just `stamp grass_tex 0 0`. Transition tiles stamp the same parts, so their texture matches the base tiles exactly where they meet.
-- **Define the boundary once, as overlay parts,** and build every piece from them:
-  - `grass_top`: grass texture over the top rows, the wobbly boundary, then the shadow row, with `.` below it. Full width.
-  - `grass_left`: the same boundary turned sideways. Full height.
-  - `grass_nub`: a small grass corner for the inner corners.
-  - `dirt_edge_n` = `stamp dirt_tex 0 0`, `stamp grass_top 0 0`. `dirt_corner_nw` = dirt, then `grass_left`, then `grass_top`. `dirt_inner_nw` = dirt, then `grass_nub`.
-  - The other directions are the same parts with `flipx`/`flipy` stamps, then the light fixed (below).
-  - Because every piece uses the same boundary, edges, corners and inner corners all meet at the same points.
-- **The boundary wobbles,** 1–2 px in and out, never a ruler-straight line. Where it reaches the tile's sides it must be at the **same depth on both sides** (for example 4 px in at both the left and right ends of `grass_top`): that's what lets a tile sit next to a copy of itself, and next to the corners. A shape this systematic may be written by a small script (a depth per column), as long as the result is reviewed like any drawing.
-- **Light, one surface higher than the other.** Grass stands slightly above dirt. Where the grass edge is on the top or left of the dirt, the grass casts a 1 px dark row onto the dirt (`D` along the boundary). Where it's on the bottom or right, the grass edge gets a lit row instead (`L`). A flipped tile flips this too: derive shapes with `flipx`/`flipy` if you like, but then fix the light rows.
+**How to make them: one `terrain`, one `blend` line per tile** (syntax in `docs/format.md`, "Transitions: terrain and blend"; `assets/tiles/ground.tileset` is the worked example):
+- **Textures are parts.** Put each base texture in a part (`part grass_tex`, `part dirt_tex`) and make the base tile just `stamp grass_tex 0 0`. The terrain uses the same parts, so transition tiles match the base tiles exactly where they meet.
+- **Write the `terrain` block:** `raised` is the higher ground (grass), `lower` the ground it meets (dirt), and the light symbols: `bank G`, `lip L`, `shadow D`. Grass stands slightly above dirt, so with light from the top left it casts a dark row onto the dirt below and right of it, and catches the light where the dirt is above or left of it. The terrain applies this everywhere, corners included.
+- **Draw the boundary as profiles:** `n`, `s`, `w`, `e`, one number per column or row for how far the grass reaches in. The boundary wobbles 1–2 px, never a ruler-straight line, and **every profile starts and ends at the same depth** (5 in `ground.tileset`): that's what lets a tile sit next to a copy of itself, and edges meet corners. The tool warns when a profile doesn't.
+- **Make each tile with `blend`:** edges `blend grass_dirt n`, outer corners `n|w` (grass from either side), inner corners `n&w` (grass only where both reach). Second edge versions use second profiles (`n2`). Hand touch-ups go after the `blend` line (`stamp`, `recolor`).
+- **Then review the result like any drawing.** The tool draws the rule, not judgement: look for single-pixel spikes where a profile steps by 2 or more, and smooth the profile rather than patching tiles.
 - **Check every transition tile with tilecheck** (it checks the wrap each one declares), and review the whole set with `pg review <file>`.
 
 ## 4. Check the set

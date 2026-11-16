@@ -31,7 +31,7 @@ The main ones: `validate`, `review [--strip|--onion]`, `gif`, `tilecheck`, `mock
 
 | Path | What |
 |---|---|
-| `src/main/java/pixelgen/` | `Cli` (entry point, command registry); `cli/` (one class per command); `parse/` (palette, sprite, tileset, mockup parsers); `model/` (Grid, Palette, Sprite, Tileset, Anim, Effects, SeamCheck, Colors); `render/` (renderers, review sheets, GIF, sheet packing); `godot/` (SpriteFrames, TileSet and scene writers, the exporter) |
+| `src/main/java/pixelgen/` | `Cli` (entry point, command registry); `cli/` (one class per command); `parse/` (palette, sprite, tileset, mockup parsers); `model/` (Grid, Palette, Sprite, Tileset, Terrain, Anim, Effects, SeamCheck, Colors); `render/` (renderers, review sheets, GIF, sheet packing); `godot/` (SpriteFrames, TileSet and scene writers, the exporter) |
 | `src/test/java/pixelgen/` | JUnit 6 tests, mirroring the main packages |
 | `src/test/resources/` | sample palettes, sprites, tilesets, and `golden/` (hand-written expected `.tres`/`.tscn`) |
 | `palettes/` | `farm.pal`, the game palette |

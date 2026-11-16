@@ -46,7 +46,7 @@ public final class TilesetParser {
     public static final int MAX_COLUMNS = 256;
 
     private static final Set<String> KEYWORDS = Set.of("tileset", "size", "palette", "columns", "part", "tile",
-            "variant", "end", "sprite", "frame", "anim", "anchor");
+            "variant", "terrain", "end", "sprite", "frame", "anim", "anchor");
 
     private TilesetParser() {}
 

@@ -238,6 +238,38 @@ variant ground_autumn recolor g>o G>O
 
 `wrap` also works on derived tiles: `tile path_s from path_n flipy wrap x`.
 
+### Transitions: `terrain` and `blend`
+
+Where two grounds meet (grass and dirt), one `terrain` block describes the meeting once, and every transition tile is made from it with a `blend` line. This works in sprites too, but tilesets are what it's for.
+
+```
+terrain grass_dirt
+  raised grass_tex       # the higher ground's texture: a part the size of a tile
+  lower dirt_tex         # the lower ground's texture: a part the size of a tile
+  bank G                 # optional: raised ground with lower ground below or right of it
+  lip L                  # optional: raised ground with lower ground above or left of it
+  shadow D               # optional: lower ground just below or right of raised ground
+  n  5 5 6 6 6 5 5 4 4 5 6 6 5 5 5 5
+  n2 5 5 4 4 5 6 6 6 5 5 4 4 5 6 6 5
+  w  5 5 6 6 5 5 4 4 5 6 6 6 5 5 5 5
+end
+
+tile dirt_edge_n wrap x
+  blend grass_dirt n
+end
+tile dirt_corner_nw wrap none
+  blend grass_dirt n|w
+end
+tile dirt_inner_nw wrap none
+  blend grass_dirt n&w
+end
+```
+
+- **Profiles** describe the raised ground. One number per column (`n`, `s`) or per row (`w`, `e`): how many pixels of raised ground reach in from that side. The name starts with its side; anything after it names a version (`n2`, `n_wide`). A tile using a profile repeats seamlessly when the profile starts and ends at the same depth (a warning says when it doesn't), and profiles of the same side should share their end depths so their tiles meet (also warned about).
+- **`blend <terrain> <profiles>`** makes the whole tile: raised ground where any of the profiles reaches (`n|w`, an outer corner), or only where all of them do (`n&w`, an inner corner). It comes first in a tile without grid rows; `stamp` and `recolor` lines after it touch the result up.
+- **The light rule** (light from the top left, raised ground standing higher): `bank` on raised ground facing lower ground below or right, `lip` on raised ground facing it above or left, `shadow` on lower ground just below or right of raised ground. Leave any of them out for a plain boundary. Points just outside the tile follow the same profiles, so the edges of a tile are shaded as if its neighbours were there.
+- `assets/tiles/ground.tileset` uses it for the full grass–dirt set: 4 edges, 4 outer corners, 4 inner corners and a second version of each edge.
+
 ### The seam check
 
 `pg tilecheck` checks every edge pair a tile's `wrap` asks for. It compares how much neighbouring pixels differ **across** the seam with how much they differ **inside** the tile, so a textured tile isn't flagged for its texture. A seam fails when it differs more than twice as much as the inside, plus a small allowance (so a stray speck on an edge passes). It reports the rows or columns that don't match and draws `preview/<tileset>/tilecheck.png`, with each tile repeated 4×4 and failing seams marked in red.

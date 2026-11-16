@@ -5,6 +5,7 @@ import pixelgen.model.Effects;
 import pixelgen.model.Grid;
 import pixelgen.model.Palette;
 import pixelgen.model.Sprite;
+import pixelgen.model.Terrain;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -57,6 +58,20 @@ import java.util.regex.Pattern;
  *
  * outline K            outline and shadow lines outside a frame apply to every frame,
  * shadow ~ 12 3        after the frame's own lines, in the order written
+ *
+ * terrain grass_dirt   where two grounds meet (see {@link Terrain}):
+ *   raised grass_tex     the higher ground's texture (a frame-sized part); the profiles describe it
+ *   lower dirt_tex       the lower ground's texture (a frame-sized part)
+ *   bank G               optional: raised ground with lower ground below or right of it
+ *   lip L                optional: raised ground with lower ground above or left of it
+ *   shadow D             optional: lower ground just below or right of raised ground
+ *   n 5 5 6 6 ...        a profile: per column (n, s) or row (w, e), how far the raised ground
+ *   n2 5 5 4 4 ...       reaches in from that side; any name starting with n, s, w or e
+ * end
+ *
+ * frame dirt_corner_nw
+ *   blend grass_dirt n|w   the whole frame from a terrain: raised ground where any profile
+ * end                      reaches (|), or where all of them do (&); must come first
  * </pre>
  *
  * The file is read in one pass and checked afterwards, so the order of directives doesn't matter
@@ -75,19 +90,38 @@ public final class SpriteParser {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_-]+");
     private static final Set<String> KEYWORDS =
-            Set.of("sprite", "size", "palette", "anchor", "part", "frame", "variant", "anim", "end");
-    private static final Set<String> FRAME_OPS = Set.of("stamp", "recolor", "outline", "shadow");
+            Set.of("sprite", "size", "palette", "anchor", "part", "frame", "variant", "anim", "terrain", "end");
+    private static final Set<String> FRAME_OPS = Set.of("stamp", "recolor", "outline", "shadow", "blend");
     /** Frame operations that may also stand outside a frame, applying to every frame. */
     private static final Set<String> SPRITE_EFFECTS = Set.of("outline", "shadow");
-    private static final Set<String> REPEATABLE = Set.of("part", "frame", "variant", "anim", "end");
+    private static final Set<String> REPEATABLE = Set.of("part", "frame", "variant", "anim", "terrain", "end");
+    private static final Pattern PROFILE = Pattern.compile("[nswe][A-Za-z0-9_-]*");
 
     private SpriteParser() {}
 
     private record Row(int line, String text) {}
 
     /** A step that changes the frame image, in the order written. */
-    private sealed interface Op permits Stamp, Recolor, Outline, Shadow {
+    private sealed interface Op permits Stamp, Recolor, Outline, Shadow, Blend {
         int line();
+    }
+
+    /** {@code blend <terrain> a|b} or {@code a&b}: the whole frame made from a terrain. */
+    private record Blend(int line, String terrain, List<String> profiles, boolean union) implements Op {}
+
+    /** A {@code terrain} block as written, before it's checked. */
+    private static final class TerrainDef {
+        final String name;
+        final int line;
+        final Map<String, String[]> settings = new LinkedHashMap<>();   // raised, lower, bank, lip, shadow
+        final Map<String, Integer> settingLines = new HashMap<>();
+        final Map<String, String[]> profiles = new LinkedHashMap<>();  // name -> its numbers, as written
+        final Map<String, Integer> profileLines = new HashMap<>();
+
+        TerrainDef(String name, int line) {
+            this.name = name;
+            this.line = line;
+        }
     }
 
     private record Stamp(int line, String part, int x, int y, boolean flipX, boolean flipY) implements Op {}
@@ -159,6 +193,8 @@ public final class SpriteParser {
         List<Op> spriteEffects = new ArrayList<>();  // outline/shadow lines outside frames
         List<AnimDef> animDefs = new ArrayList<>();
         Block open = null;
+        List<TerrainDef> terrainDefs = new ArrayList<>();
+        TerrainDef openTerrain = null;
 
         String[] lines = text.split("\\R", -1);
         for (int i = 0; i < lines.length; i++) {
@@ -167,6 +203,22 @@ public final class SpriteParser {
             if (line.isEmpty() || line.startsWith("#")) continue;
             String where = source + ":" + lineNo + ": ";
             String[] tokens = line.split("\\s+");
+
+            if (openTerrain != null) {
+                if (line.equals("end")) {
+                    openTerrain = null;
+                    continue;
+                }
+                if (tokens.length > 1 && KEYWORDS.contains(tokens[0])) {
+                    errors.add(source + ":" + openTerrain.line + ": terrain '" + openTerrain.name
+                            + "' has no 'end' before line " + lineNo);
+                    openTerrain = null;
+                    // fall through and read this line as a directive
+                } else {
+                    readTerrainLine(openTerrain, tokens, lineNo, where, errors);
+                    continue;
+                }
+            }
 
             if (open != null) {
                 if (line.equals("end")) {
@@ -245,6 +297,13 @@ public final class SpriteParser {
                         if (map != null) variants.add(new Variant(lineNo, tokens[1], map));
                     }
                 }
+                case "terrain" -> {
+                    if (tokens.length != 2 || !NAME.matcher(tokens[1]).matches()) {
+                        errors.add(where + "expected 'terrain <name>' (letters, digits, _ and -)");
+                    }
+                    openTerrain = new TerrainDef(tokens.length > 1 ? tokens[1] : "?", lineNo);
+                    terrainDefs.add(openTerrain);
+                }
                 case "end" -> errors.add(where + "'end' without a matching 'part' or 'frame'");
                 case "outline", "shadow" -> {
                     Op op = parseOp(tokens, lineNo, where, errors);
@@ -260,6 +319,9 @@ public final class SpriteParser {
         }
         if (open != null) {
             errors.add(source + ":" + open.line + ": " + open.label() + " has no 'end'");
+        }
+        if (openTerrain != null) {
+            errors.add(source + ":" + openTerrain.line + ": terrain '" + openTerrain.name + "' has no 'end'");
         }
 
         // ---- checks that need the whole file ----
@@ -303,6 +365,20 @@ public final class SpriteParser {
             if (grid.isBlank()) warnings.add(source + ":" + b.line + ": " + b.label() + " has no visible pixels");
             parts.put(b.name, grid);
         }
+        // Terrains, which frames can blend.
+        Set<String> declaredTerrains = new LinkedHashSet<>();
+        Map<String, Terrain> terrains = new LinkedHashMap<>();
+        Map<String, Integer> terrainLines = new HashMap<>();
+        for (TerrainDef def : terrainDefs) {
+            Integer first = terrainLines.putIfAbsent(def.name, def.line);
+            if (first != null) {
+                errors.add(source + ":" + def.line + ": terrain '" + def.name + "' is already defined on line " + first);
+                continue;
+            }
+            declaredTerrains.add(def.name);
+            Terrain t = checkTerrain(def, source, width, height, palette, declaredParts, parts, errors, warnings);
+            if (t != null) terrains.put(def.name, t);
+        }
         // Sprite-level effects: check each colour once, then apply them to every frame.
         List<Op> effects = new ArrayList<>();
         for (Op op : spriteEffects) {
@@ -316,7 +392,7 @@ public final class SpriteParser {
         for (Block b : frameBlocks.values()) {
             if (b.isDerived()) continue;
             Grid grid = buildFrame(b, source, width, height, palette, anchorX, anchorY, declaredParts, parts,
-                    errors, warnings);
+                    declaredTerrains, terrains, errors, warnings);
             if (grid != null) built.put(b.name, grid);
         }
         Derivation derivation = new Derivation(source, palette, frameBlocks, declaredParts, built, errors, warnings);
@@ -596,6 +672,7 @@ public final class SpriteParser {
                 yield map == null ? null : new Recolor(lineNo, map);
             }
             case "outline" -> parseOutline(tokens, lineNo, where, errors);
+            case "blend" -> parseBlend(tokens, lineNo, where, errors);
             default -> parseShadow(tokens, lineNo, where, errors);
         };
     }
@@ -663,6 +740,29 @@ public final class SpriteParser {
         return op instanceof Shadow s
                 ? "the " + s.width() + "x" + s.height() + " shadow is cut off at the frame edge"
                 : "the outline is cut off at the frame edge; leave 1 px free around the art";
+    }
+
+    /** {@code blend <terrain> <profile>|<profile>...} or with {@code &}; one kind of operator per line. */
+    private static Blend parseBlend(String[] tokens, int lineNo, String where, List<String> errors) {
+        String form = "blend <terrain> <profile>[|<profile>...] or <profile>&<profile>...";
+        if (tokens.length != 3 || !NAME.matcher(tokens[1]).matches()) {
+            errors.add(where + "expected '" + form + "', like 'blend grass_dirt n|w'");
+            return null;
+        }
+        String expr = tokens[2];
+        boolean union = expr.contains("|"), all = expr.contains("&");
+        if (union && all) {
+            errors.add(where + "'" + expr + "' mixes | and &; use | for an outer corner or & for an inner one");
+            return null;
+        }
+        List<String> names = List.of(expr.split(union ? "\\|" : "&", -1));
+        for (String n : names) {
+            if (!PROFILE.matcher(n).matches()) {
+                errors.add(where + "'" + n + "' isn't a profile name (they start with n, s, w or e)");
+                return null;
+            }
+        }
+        return new Blend(lineNo, tokens[1], names, union || !all);
     }
 
     /** {@code stamp <part> <x> <y> [flipx] [flipy]} */
@@ -753,6 +853,7 @@ public final class SpriteParser {
     /** Builds a frame from its rows (or a blank image) and its operations; null on errors. */
     private static Grid buildFrame(Block b, String source, int width, int height, Palette palette,
                                    int anchorX, int anchorY, Set<String> declaredParts, Map<String, Grid> parts,
+                                   Set<String> declaredTerrains, Map<String, Terrain> terrains,
                                    List<String> errors, List<String> warnings) {
         if (b.rows.isEmpty() && b.ops.isEmpty()) {
             if (!b.broken) {
@@ -798,10 +899,148 @@ public final class SpriteParser {
                         errors, warnings);
                 case Shadow s -> grid = effect(s, grid, palette, anchorX, anchorY, where + b.label() + ": ",
                         errors, warnings);
+                case Blend bl -> {
+                    if (!b.rows.isEmpty() || b.ops.getFirst() != bl) {
+                        errors.add(where + b.label() + ": 'blend' makes the whole frame, so it comes first, in a "
+                                + "frame without grid rows; touch it up with lines after it");
+                        grid = null;
+                        continue;
+                    }
+                    Terrain t = terrains.get(bl.terrain());
+                    if (t == null) {
+                        if (!declaredTerrains.contains(bl.terrain())) {  // a declared terrain with errors is already reported
+                            errors.add(where + b.label() + ": unknown terrain '" + bl.terrain() + "'"
+                                    + (declaredTerrains.isEmpty() ? " (no terrains are defined)"
+                                    : " (terrains: " + String.join(", ", declaredTerrains) + ")"));
+                        }
+                        grid = null;
+                        continue;
+                    }
+                    List<String> unknown = bl.profiles().stream().filter(p -> !t.profiles().containsKey(p)).toList();
+                    if (!unknown.isEmpty()) {
+                        errors.add(where + b.label() + ": terrain '" + t.name() + "' has no profile "
+                                + String.join(", ", unknown) + " (profiles: "
+                                + String.join(", ", t.profiles().keySet().stream().sorted().toList()) + ")");
+                        grid = null;
+                        continue;
+                    }
+                    grid = t.blend(bl.profiles(), bl.union());
+                }
             }
         }
         if (b.broken || errors.size() > before) return null;
         return grid;
+    }
+
+    /** Reads one line inside a {@code terrain} block. */
+    private static void readTerrainLine(TerrainDef def, String[] tokens, int lineNo, String where,
+                                        List<String> errors) {
+        String key = tokens[0];
+        switch (key) {
+            case "raised", "lower", "bank", "lip", "shadow" -> {
+                boolean symbol = !key.equals("raised") && !key.equals("lower");
+                if (tokens.length != 2 || (symbol ? !isSymbol(tokens[1]) : !NAME.matcher(tokens[1]).matches())) {
+                    errors.add(where + "expected '" + key + (symbol ? " <colour>'" : " <part>'"));
+                    return;
+                }
+                Integer first = def.settingLines.putIfAbsent(key, lineNo);
+                if (first != null) {
+                    errors.add(where + "'" + key + "' is already set on line " + first);
+                    return;
+                }
+                def.settings.put(key, new String[] {tokens[1], String.valueOf(lineNo)});
+            }
+            default -> {
+                if (!PROFILE.matcher(key).matches() || tokens.length < 2) {
+                    errors.add(where + "unknown line in terrain '" + def.name + "'; expected raised, lower, bank, lip,"
+                            + " shadow, or a profile like 'n 5 5 6 6 ...' (a name starting with n, s, w or e)");
+                    return;
+                }
+                Integer first = def.profileLines.putIfAbsent(key, lineNo);
+                if (first != null) {
+                    errors.add(where + "profile '" + key + "' is already defined on line " + first);
+                    return;
+                }
+                def.profiles.put(key, java.util.Arrays.copyOfRange(tokens, 1, tokens.length));
+            }
+        }
+    }
+
+    /** Checks a terrain against the parts and palette; null after an error. */
+    private static Terrain checkTerrain(TerrainDef def, String source, int width, int height, Palette palette,
+                                        Set<String> declaredParts, Map<String, Grid> parts, List<String> errors,
+                                        List<String> warnings) {
+        int before = errors.size();
+        String where = source + ":" + def.line + ": terrain '" + def.name + "': ";
+        Grid[] textures = new Grid[2];
+        String[] keys = {"raised", "lower"};
+        for (int i = 0; i < 2; i++) {
+            String[] s = def.settings.get(keys[i]);
+            if (s == null) {
+                errors.add(where + "missing '" + keys[i] + " <part>'");
+                continue;
+            }
+            String w = source + ":" + s[1] + ": ";
+            Grid g = parts.get(s[0]);
+            if (g == null) {
+                if (!declaredParts.contains(s[0])) {
+                    errors.add(w + "unknown part '" + s[0] + "'" + (declaredParts.isEmpty() ? " (no parts are defined)"
+                            : " (parts: " + String.join(", ", declaredParts) + ")"));
+                } else {
+                    errors.add(w + "part '" + s[0] + "' has errors");
+                }
+            } else if (width > 0 && (g.width() != width || g.height() != height)) {
+                errors.add(w + "part '" + s[0] + "' is " + g.width() + "x" + g.height() + "; a terrain's textures are "
+                        + "full frames, " + width + "x" + height);
+            } else {
+                textures[i] = g;
+            }
+        }
+        char[] symbols = new char[3];
+        String[] symbolKeys = {"bank", "lip", "shadow"};
+        for (int i = 0; i < 3; i++) {
+            String[] s = def.settings.get(symbolKeys[i]);
+            if (s == null) continue;
+            if (checkSymbol(s[0].charAt(0), palette, source + ":" + s[1] + ": ", errors)) symbols[i] = s[0].charAt(0);
+        }
+        if (def.profiles.isEmpty()) errors.add(where + "no profiles; add lines like 'n 5 5 6 6 ...'");
+        Map<String, int[]> profiles = new LinkedHashMap<>();
+        Map<Character, String> firstOfSide = new HashMap<>();
+        for (Map.Entry<String, String[]> e : def.profiles.entrySet()) {
+            String name = e.getKey();
+            String w = source + ":" + def.profileLines.get(name) + ": profile '" + name + "': ";
+            char side = name.charAt(0);
+            int length = side == 'n' || side == 's' ? width : height;
+            int across = side == 'n' || side == 's' ? height : width;
+            String[] raw = e.getValue();
+            if (length > 0 && raw.length != length) {
+                errors.add(w + "has " + raw.length + " values; it needs one per " + (side == 'n' || side == 's'
+                        ? "column (" + length + ")" : "row (" + length + ")"));
+                continue;
+            }
+            int[] d = new int[raw.length];
+            boolean ok = true;
+            for (int i = 0; i < raw.length && ok; i++) {
+                if (!raw[i].matches("\\d{1,3}") || (across > 0 && Integer.parseInt(raw[i]) > across)) {
+                    errors.add(w + "'" + raw[i] + "' isn't a depth from 0 to " + across);
+                    ok = false;
+                } else {
+                    d[i] = Integer.parseInt(raw[i]);
+                }
+            }
+            if (!ok) continue;
+            if (d[0] != d[d.length - 1]) {
+                warnings.add(w + "starts at " + d[0] + " and ends at " + d[d.length - 1]
+                        + "; a tile using it won't fit next to a copy of itself");
+            }
+            String other = firstOfSide.putIfAbsent(side, name);
+            if (other != null && (profiles.get(other)[0] != d[0] || profiles.get(other)[d.length - 1] != d[d.length - 1])) {
+                warnings.add(w + "ends at different depths from '" + other + "', so their tiles won't meet");
+            }
+            profiles.put(name, d);
+        }
+        if (errors.size() > before || textures[0] == null || textures[1] == null) return null;
+        return new Terrain(def.name, textures[0], textures[1], symbols[0], symbols[1], symbols[2], profiles);
     }
 
     /** Checks the grid rows of a part or frame and returns them as a grid, or null on errors. */

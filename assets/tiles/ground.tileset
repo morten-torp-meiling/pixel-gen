@@ -1,14 +1,6 @@
 # Ground for one TileMapLayer: grass, dirt and tilled soil, and every transition
 # between grass and dirt. Light from the top left; grass stands slightly above dirt.
-#
 # Tilled soil is darker plain soil with broken furrows and a few lit ridge dashes.
-#
-# The transition tiles were computed from one grass mask per tile (four wobbly
-# boundary profiles, all 4 px deep where they meet the tile's sides), with one light
-# rule: grass facing dirt below or right is the shaded bank G, grass facing dirt
-# above or left the lit lip L, and dirt just below or right of grass gets the cast
-# shadow D. Outer corners are two edges' masks combined, inner corners their overlap,
-# so every piece meets the next at the same depth.
 #
 # Atlas order (columns 4) reads like a dirt patch: corners and edges around dirt,
 # inner corners on the right, then the base tiles and the second edge versions.
@@ -71,206 +63,63 @@ part tilled_tex
   dddDdddddddDdddd
 end
 
+# Grass meeting dirt. Each profile is how many rows (n, s) or columns (w, e) of grass reach
+# in from that side; all start and end at 5, so edges, corners and inner corners meet.
+# The light: grass with dirt below or right of it is the bank G, grass with dirt above or
+# left of it the lit lip L, and dirt just below or right of grass gets the shadow D.
+terrain grass_dirt
+  raised grass_tex
+  lower dirt_tex
+  bank G
+  lip L
+  shadow D
+  n  5 5 6 6 6 5 5 4 4 5 6 6 5 5 5 5
+  s  5 5 5 6 6 5 4 4 5 5 6 6 6 5 5 5
+  w  5 5 6 6 5 5 4 4 5 6 6 6 5 5 5 5
+  e  5 5 5 4 4 5 6 6 5 5 4 5 6 6 5 5
+  # Second versions, so long edges don't repeat their wobble every tile.
+  n2 5 5 4 4 5 6 6 6 5 5 4 4 5 6 6 5
+  s2 5 6 6 5 5 4 4 5 6 6 5 5 4 4 5 5
+  w2 5 4 4 5 6 6 5 5 4 4 5 6 6 5 5 5
+  e2 5 6 6 6 5 4 4 5 5 6 6 5 4 4 5 5
+end
+
+# Outer corners combine two edges (|); inner corners are where both reach (&).
 tile dirt_corner_nw wrap none
-  gggggggGLGgggggg
-  gLgLggggggggGggg
-  gGLGgggggggggggg
-  ggggglgGGLgLgggg
-  gggggGGDDGLGGGGG
-  LgggGDDddDGGDDDD
-  GggGDdddTdDDdddd
-  gggGDddddddddddD
-  ggggGDdddddddddd
-  ggggGGDdddddTddd
-  lggggGDddddddddd
-  gggggGDddddddddd
-  ggggGDddddDddddd
-  ggLgGDdddddddddT
-  ggGLGDdddddddddd
-  ggggGDdddddddddd
+  blend grass_dirt n|w
 end
 tile dirt_edge_n wrap x
-  gggggggGLGgggggg
-  gLgLggggggggGggg
-  gGLGgggggggggggg
-  ggggglgGGLgLgggg
-  GGgggGGDDGLGGGGG
-  DDGGGDDddDGGDDDD
-  ddDDDdddTdDDdddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  ddddddTddddddddd
-  dDdddddddddddddd
-  ddddddddddDddddd
-  dddddddddddddddT
-  dddTdddddddddddd
-  dddddddddddddddd
+  blend grass_dirt n
 end
 tile dirt_corner_ne wrap none
-  gggggggGLGgggggg
-  gLgLggggggggGggg
-  gGLGgggggggggggg
-  ggggglgGGLgLgggg
-  GGgggGGDDGLGgggg
-  DDGGGDDddDLgggLg
-  ddDDDdddTdLgggGL
-  dddDddddddGgglgg
-  ddddddddddDLgggg
-  dddddddddddGgggg
-  ddddddTddddDLLgg
-  dDdddddddddLLGgg
-  ddddddddddLggggg
-  ddddddddddGggggg
-  dddTddddddDLggGg
-  dddddddddddLgggg
+  blend grass_dirt n|e
 end
 tile dirt_inner_nw wrap none
-  ggggGDdddddddddd
-  gLgLGDddddDddddd
-  gGLGgGDddddddddd
-  gggggGDddddddTdd
-  GGggGDdddddddddd
-  DDGGGDddddDddddd
-  ddDDDdddTddddddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  ddddddTddddddddd
-  dDdddddddddddddd
-  ddddddddddDddddd
-  dddddddddddddddT
-  dddTdddddddddddd
-  dddddddddddddddd
+  blend grass_dirt n&w
 end
 tile dirt_edge_w wrap y
-  ggggGDdddddddddd
-  gLgLGDddddDddddd
-  gGLGgGDddddddddd
-  gggggGDddddddTdd
-  ggggGDdddddddddd
-  LgggGDddddDddddd
-  GggGDdddTddddddd
-  gggGDddddddddddD
-  ggggGDdddddddddd
-  ggggGGDdddddTddd
-  lggggGDddddddddd
-  gggggGDddddddddd
-  ggggGDddddDddddd
-  ggLgGDdddddddddT
-  ggGLGDdddddddddd
-  ggggGDdddddddddd
+  blend grass_dirt w
 end
 tile dirt
   stamp dirt_tex 0 0
 end
 tile dirt_edge_e wrap y
-  dddddddddddLgggg
-  ddTdddddddDLGggg
-  dddddddddddGgggg
-  dddddDdddddDLggg
-  ddddddddddddLggg
-  dTddddddddDLggLg
-  ddddddddTdLgggGL
-  dddDddddddGgglgg
-  ddddddddddDLgggg
-  dddddddddddGgggg
-  ddddddTddddDLLgg
-  dDdddddddddLLGgg
-  ddddddddddLggggg
-  ddddddddddGggggg
-  dddTddddddDLggGg
-  dddddddddddLgggg
+  blend grass_dirt e
 end
 tile dirt_inner_ne wrap none
-  dddddddddddLgggg
-  ddTdddddddDLGggg
-  dddddddddddGgggg
-  dddddDdddddDLggg
-  ddddddddddddGGGG
-  dTddddddddDGDDDD
-  ddddddddTddDdddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  ddddddTddddddddd
-  dDdddddddddddddd
-  ddddddddddDddddd
-  dddddddddddddddT
-  dddTdddddddddddd
-  dddddddddddddddd
+  blend grass_dirt n&e
 end
 tile dirt_corner_sw wrap none
-  ggggGDdddddddddd
-  gLgLGDddddDddddd
-  gGLGgGDddddddddd
-  gggggGDddddddTdd
-  ggggGDdddddddddd
-  LgggGDddddDddddd
-  GggGDdddTddddddd
-  gggGDddddddddddD
-  ggggGDdddddddddd
-  ggggGGDdddddTddd
-  lggggGDdddLLGDdd
-  gggggGDdLLgGLLLL
-  ggggggLLgGgggggg
-  ggLgLggggggggggg
-  ggGLGgggggggggGg
-  gggggggLgLgggggg
+  blend grass_dirt s|w
 end
 tile dirt_edge_s wrap x
-  dddddddddddddddd
-  ddTdddddddDddddd
-  dddddddddddddddd
-  dddddDdddddddTdd
-  dddddddddddddddd
-  dTddddddddDddddd
-  ddddddddTddddddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  dddLGDTdddLLGDdd
-  LLLggGDdLLgGLLLL
-  ggggggLLgGgggggg
-  ggLgLggggggggggg
-  ggGLGgggggggggGg
-  gggggggLgLgggggg
+  blend grass_dirt s
 end
 tile dirt_corner_se wrap none
-  dddddddddddLgggg
-  ddTdddddddDLGggg
-  dddddddddddGgggg
-  dddddDdddddDLggg
-  ddddddddddddLggg
-  dTddddddddDLggLg
-  ddddddddTdLgggGL
-  dddDddddddGgglgg
-  ddddddddddDLgggg
-  dddddddddddLgggg
-  dddLGDTdddLLgLgg
-  LLLggGDdLLgGLGgg
-  ggggggLLgGgggggg
-  ggLgLggggggggggg
-  ggGLGgggggggggGg
-  gggggggLgLgggggg
+  blend grass_dirt s|e
 end
 tile dirt_inner_sw wrap none
-  dddddddddddddddd
-  ddTdddddddDddddd
-  dddddddddddddddd
-  dddddDdddddddTdd
-  dddddddddddddddd
-  dTddddddddDddddd
-  ddddddddTddddddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  dddLGDTddddddddd
-  LLLggGDddddddddd
-  ggggGDddddDddddd
-  ggLgGDdddddddddT
-  ggGLGDdddddddddd
-  ggggGDdddddddddd
+  blend grass_dirt s&w
 end
 tile grass
   stamp grass_tex 0 0
@@ -296,94 +145,19 @@ tile grass_c
   gggggggggggGLGgg
 end
 tile dirt_inner_se wrap none
-  dddddddddddddddd
-  ddTdddddddDddddd
-  dddddddddddddddd
-  dddddDdddddddTdd
-  dddddddddddddddd
-  dTddddddddDddddd
-  ddddddddTddddddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  ddddddTdddddGDdd
-  dDdddddddddLLLLL
-  ddddddddddLggggg
-  ddddddddddGggggg
-  dddTddddddDLggGg
-  dddddddddddLgggg
+  blend grass_dirt s&e
 end
 tile dirt_edge_n_b wrap x
-  gggggggGLGgggggg
-  gLgLggggggggGggg
-  gGLGgggggggggggg
-  ggGGglgggLGGgggg
-  GGDDGgggGGDDGggG
-  DDddDGGGDDDdDGGD
-  dddddDDDTddddDDd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  ddddddTddddddddd
-  dDdddddddddddddd
-  ddddddddddDddddd
-  dddddddddddddddT
-  dddTdddddddddddd
-  dddddddddddddddd
+  blend grass_dirt n2
 end
 tile dirt_edge_s_b wrap x
-  dddddddddddddddd
-  ddTdddddddDddddd
-  dddddddddddddddd
-  dddddDdddddddTdd
-  dddddddddddddddd
-  dTddddddddDddddd
-  ddddddddTddddddd
-  dddDdddddddddddD
-  dddddddddddddddd
-  ddddddddddddTddd
-  dLGDddTdLGDddddd
-  LggLGDdLggLGDdLL
-  gggggLLggGggLLgg
-  ggLgLggggggggggg
-  ggGLGgggggggggGg
-  gggggggLgLgggggg
+  blend grass_dirt s2
 end
 tile dirt_edge_w_b wrap y
-  ggggGDdddddddddd
-  gLgGDdddddDddddd
-  gGLGDddddddddddd
-  ggggGDdddddddTdd
-  gggggGDddddddddd
-  LggggGDdddDddddd
-  GgggGDddTddddddd
-  ggggGDdddddddddD
-  gggGDddddddddddd
-  gggGDdddddddTddd
-  lgggGDTddddddddd
-  gggggGDddddddddd
-  gggggGDdddDddddd
-  ggLgGDdddddddddT
-  ggGLGDdddddddddd
-  ggggGDdddddddddd
+  blend grass_dirt w2
 end
 tile dirt_edge_e_b wrap y
-  dddddddddddLgggg
-  ddTdddddddLgGggg
-  ddddddddddLggggg
-  dddddDddddGLgggg
-  ddddddddddDGgggg
-  dTddddddddDDLgLg
-  ddddddddTdddLgGL
-  dddDdddddddLglgg
-  dddddddddddLgggg
-  ddddddddddLggggg
-  ddddddTdddGLgLgg
-  dDddddddddDGLGgg
-  ddddddddddDDLggg
-  ddddddddddddLggg
-  dddTdddddddLggGg
-  dddddddddddLgggg
+  blend grass_dirt e2
 end
 tile dirt_b from dirt flipx
 tile tilled

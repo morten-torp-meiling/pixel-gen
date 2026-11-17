@@ -1,0 +1,10 @@
+# The farm: a cozy top-down 3/4 farm in warm light from the top left.
+style farm
+palette farm
+light top-left
+# What a bare 'outline' line draws; characters still write 'outline K' for a full outline.
+outline K selective
+# The colour of 'shadow <width> <height>'.
+shadow ~
+tile 16 16
+guide farm.md

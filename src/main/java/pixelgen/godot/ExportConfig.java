@@ -1,5 +1,6 @@
 package pixelgen.godot;
 
+import pixelgen.parse.KeyValues;
 import pixelgen.parse.ParseException;
 
 import java.io.IOException;
@@ -8,9 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Export settings from {@code pixelgen.conf} in the project folder.
@@ -51,56 +50,40 @@ public record ExportConfig(Path project, String art, boolean scenes) {
     /** Parses settings; relative paths resolve against {@code baseDir}. */
     public static ExportConfig parse(String text, String source, Path baseDir) throws ParseException {
         List<String> errors = new ArrayList<>();
-        Map<String, Integer> seen = new HashMap<>();
-        String project = null, art = DEFAULT_ART;
-        boolean scenes = true;
-        int projectLine = 0;
-        String[] lines = text.split("\\R", -1);
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i].strip();
-            if (line.isEmpty() || line.startsWith("#")) continue;
-            String where = source + ":" + (i + 1) + ": ";
-            int eq = line.indexOf('=');
-            if (eq < 0) {
-                errors.add(where + "expected 'key = value'");
-                continue;
-            }
-            String key = line.substring(0, eq).strip(), value = line.substring(eq + 1).strip();
-            Integer first = seen.putIfAbsent(key, i + 1);
-            if (first != null) {
-                errors.add(where + "'" + key + "' is already set on line " + first);
-                continue;
-            }
+        String[] project = {null}, art = {DEFAULT_ART};
+        boolean[] scenes = {true};
+        int[] projectLine = {0};
+        KeyValues.read(text, source, errors, (key, value, line, where) -> {
             switch (key) {
                 case "godot.project" -> {
-                    project = value;
-                    projectLine = i + 1;
+                    project[0] = value;
+                    projectLine[0] = line;
                 }
                 case "godot.art" -> {
                     if (!value.startsWith("res://") || value.contains("\\") || value.contains("..")) {
                         errors.add(where + "godot.art must be a folder like res://art, not '" + value + "'");
                     } else {
-                        art = value.endsWith("/") && !value.equals("res://") ? value.substring(0, value.length() - 1)
-                                : value;
+                        art[0] = value.endsWith("/") && !value.equals("res://")
+                                ? value.substring(0, value.length() - 1) : value;
                     }
                 }
                 case "scenes" -> {
-                    if (value.equals("true") || value.equals("false")) scenes = value.equals("true");
+                    if (value.equals("true") || value.equals("false")) scenes[0] = value.equals("true");
                     else errors.add(where + "scenes must be true or false, not '" + value + "'");
                 }
                 default -> errors.add(where + "unknown setting '" + key + "'; known: godot.project, godot.art, scenes");
             }
-        }
+        });
         Path dir = null;
-        if (project == null) {
+        if (project[0] == null) {
             errors.add(source + ": missing 'godot.project = <folder with project.godot>'");
         } else {
-            dir = baseDir.resolve(project).toAbsolutePath().normalize();
+            dir = baseDir.resolve(project[0]).toAbsolutePath().normalize();
             if (!Files.isRegularFile(dir.resolve("project.godot"))) {
-                errors.add(source + ":" + projectLine + ": no project.godot in " + dir);
+                errors.add(source + ":" + projectLine[0] + ": no project.godot in " + dir);
             }
         }
         if (!errors.isEmpty()) throw new ParseException(errors);
-        return new ExportConfig(dir, art, scenes);
+        return new ExportConfig(dir, art[0], scenes[0]);
     }
 }

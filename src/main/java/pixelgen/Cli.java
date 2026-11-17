@@ -8,6 +8,7 @@ import pixelgen.cli.MockupCommand;
 import pixelgen.cli.PaletteCommand;
 import pixelgen.cli.RenderCommand;
 import pixelgen.cli.SheetCommand;
+import pixelgen.cli.StyleCommand;
 import pixelgen.cli.TilecheckCommand;
 import pixelgen.cli.TilesCommand;
 import pixelgen.cli.ReviewCommand;
@@ -56,6 +57,7 @@ public final class Cli {
         // Commands resolve relative paths (palettes/, assets/, preview/) against the current folder.
         Path projectDir = Path.of("").toAbsolutePath();
         COMMANDS.put("palette", new PaletteCommand(projectDir));
+        COMMANDS.put("style", new StyleCommand(projectDir));
         COMMANDS.put("validate", new ValidateCommand(projectDir));
         COMMANDS.put("render", new RenderCommand(projectDir));
         COMMANDS.put("review", new ReviewCommand(projectDir));

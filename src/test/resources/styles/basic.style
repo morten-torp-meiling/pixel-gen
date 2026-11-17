@@ -1,0 +1,8 @@
+# Test style: every setting given.
+style basic
+palette basic
+light top-right
+outline K selective
+shadow k
+tile 8 8
+guide basic.md

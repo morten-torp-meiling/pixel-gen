@@ -1103,8 +1103,8 @@ public final class SpriteParser {
         })).toList();
     }
 
-    private static Palette loadPalette(String nameOrPath, String where, PaletteResolver palettes,
-                                       List<String> errors) {
+    static Palette loadPalette(String nameOrPath, String where, PaletteResolver palettes,
+                               List<String> errors) {
         try {
             return palettes.load(nameOrPath);
         } catch (NoSuchFileException e) {

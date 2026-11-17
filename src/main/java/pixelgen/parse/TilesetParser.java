@@ -20,8 +20,9 @@ import java.util.regex.Pattern;
  *
  * <pre>
  * tileset ground          optional; defaults to the file name
- * size 16 16              optional; tiles are 16x16 unless set
- * palette farm            required
+ * size 16 16              optional; tiles take the style's tile size (16x16 by default) unless set
+ * style farm              optional, as in sprites
+ * palette farm            required unless the style names one
  * columns 4               optional: tiles per row in the atlas (default: up to 8)
  *
  * part tuft ... end       parts, stamps, recolor, outline and variants work as in sprites
@@ -42,7 +43,6 @@ import java.util.regex.Pattern;
  */
 public final class TilesetParser {
 
-    public static final int DEFAULT_SIZE = 16;
     public static final int MAX_COLUMNS = 256;
 
     private static final Set<String> KEYWORDS = Set.of("tileset", "size", "palette", "columns", "part", "tile",
@@ -64,7 +64,6 @@ public final class TilesetParser {
         List<String> errors = new ArrayList<>();
         Map<String, Tileset.Wrap> wraps = new LinkedHashMap<>();
         int columns = 0, columnsLine = 0;
-        boolean hasSize = false;
 
         String[] lines = text.split("\\R", -1);
         StringBuilder sprite = new StringBuilder();
@@ -76,7 +75,6 @@ public final class TilesetParser {
             // Grid rows and frame operations pass through; only directive lines are translated.
             boolean directive = !line.startsWith("#") && KEYWORDS.contains(tokens[0])
                     && (tokens.length > 1 || line.equals("end"));
-            if (tokens[0].equals("size") && !line.startsWith("#")) hasSize = true;
             String out = lines[i];
             if (directive) {
                 switch (tokens[0]) {
@@ -112,20 +110,18 @@ public final class TilesetParser {
             }
             sprite.append(out).append('\n');
         }
-        // Added after the last line, so line numbers stay true and it can't clash with a real 'size'.
-        if (!hasSize) sprite.append("size ").append(DEFAULT_SIZE).append(' ').append(DEFAULT_SIZE).append('\n');
 
         Sprite s = null;
         try {
-            s = SpriteParser.parse(sprite.toString(), source, defaultName, palettes);
+            s = SpriteParser.parse(sprite.toString(), source, defaultName, palettes, true);
         } catch (ParseException e) {
             for (String m : e.errors()) errors.add(translate(m));
         }
         if (!errors.isEmpty()) throw new ParseException(SpriteParser.sortByLine(errors, source));
 
         List<String> warnings = s.warnings().stream().map(TilesetParser::translate).toList();
-        Sprite tiles = new Sprite(s.name(), s.width(), s.height(), s.palette(), s.anchorX(), s.anchorY(), s.parts(),
-                s.frames(), s.anims(), s.variants(), warnings);
+        Sprite tiles = new Sprite(s.name(), s.width(), s.height(), s.palette(), s.style(), s.anchorX(), s.anchorY(),
+                s.parts(), s.frames(), s.anims(), s.variants(), warnings);
         int cols = columns > 0 ? columns : Math.min(tiles.frames().size(), Tileset.DEFAULT_COLUMNS);
         return new Tileset(tiles, cols, wraps);
     }

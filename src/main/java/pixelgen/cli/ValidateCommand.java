@@ -66,13 +66,13 @@ public final class ValidateCommand implements Cli.Command {
                     StringBuilder wraps = new StringBuilder();
                     oneWay.forEach((w, tiles) -> wraps.append(", wrap ").append(w.word()).append(": ")
                             .append(String.join(" ", tiles)));
-                    out.printf("ok   %s (%d tiles of %dx%d, %d parts, %d columns, palette %s%s%s)%n", shown,
-                            s.frames().size(), s.width(), s.height(), s.parts().size(), t.columns(),
+                    out.printf("ok   %s (%d tiles of %dx%d, %d parts, %d columns, %spalette %s%s%s)%n", shown,
+                            s.frames().size(), s.width(), s.height(), s.parts().size(), t.columns(), style(s),
                             s.palette().name(), wraps, variants);
                 } else {
                     s = SpriteFiles.load(f, shown, palettes);
-                    out.printf("ok   %s (%dx%d, %d frames, %d parts, palette %s%s%s)%n", shown, s.width(), s.height(),
-                            s.frames().size(), s.parts().size(), s.palette().name(),
+                    out.printf("ok   %s (%dx%d, %d frames, %d parts, %spalette %s%s%s)%n", shown, s.width(), s.height(),
+                            s.frames().size(), s.parts().size(), style(s), s.palette().name(),
                             s.anims().isEmpty() ? "" : ", anims " + String.join(" ", s.anims().keySet()), variants(s));
                 }
                 for (String w : s.warnings()) out.println("     warning: " + w);
@@ -84,6 +84,11 @@ public final class ValidateCommand implements Cli.Command {
         }
         out.printf("%d file(s) checked, %d with errors%n", files.size(), failed);
         return failed == 0 ? 0 : 1;
+    }
+
+    /** "style cave, ", or nothing for the built-in style. */
+    private static String style(Sprite s) {
+        return s.style().isBuiltIn() ? "" : "style " + s.style().name() + ", ";
     }
 
     private static String variants(Sprite s) {

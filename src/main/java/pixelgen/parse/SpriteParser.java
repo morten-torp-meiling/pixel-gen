@@ -5,6 +5,7 @@ import pixelgen.model.Effects;
 import pixelgen.model.Grid;
 import pixelgen.model.Palette;
 import pixelgen.model.Sprite;
+import pixelgen.model.Style;
 import pixelgen.model.Terrain;
 
 import java.io.IOException;
@@ -31,7 +32,8 @@ import java.util.regex.Pattern;
  * # comment (a line whose first non-space character is #, also inside grids)
  * sprite farmer        optional; defaults to the file name
  * size 16 32           required: frame width and height (1-256)
- * palette farm         required: palette name or path to a .pal file
+ * style farm           optional: the style (see {@link Style}); defaults to the project's default style
+ * palette farm         palette name or path to a .pal file; required unless the style names one
  * anchor 8 31          optional pivot point; defaults to bottom centre
  *
  * part head            a reusable piece; rows may be any (equal) width
@@ -58,6 +60,9 @@ import java.util.regex.Pattern;
  *
  * outline K            outline and shadow lines outside a frame apply to every frame,
  * shadow ~ 12 3        after the frame's own lines, in the order written
+ *
+ * outline              without a colour, outline and shadow take the style's colour
+ * shadow 12 3          (and a bare 'outline' the style's mode); 'outline selective' sets the mode
  *
  * terrain grass_dirt   where two grounds meet (see {@link Terrain}):
  *   raised grass_tex     the higher ground's texture (a frame-sized part); the profiles describe it
@@ -90,7 +95,8 @@ public final class SpriteParser {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_-]+");
     private static final Set<String> KEYWORDS =
-            Set.of("sprite", "size", "palette", "anchor", "part", "frame", "variant", "anim", "terrain", "end");
+            Set.of("sprite", "size", "palette", "style", "anchor", "part", "frame", "variant", "anim", "terrain",
+                    "end");
     private static final Set<String> FRAME_OPS = Set.of("stamp", "recolor", "outline", "shadow", "blend");
     /** Frame operations that may also stand outside a frame, applying to every frame. */
     private static final Set<String> SPRITE_EFFECTS = Set.of("outline", "shadow");
@@ -128,8 +134,10 @@ public final class SpriteParser {
 
     private record Recolor(int line, Map<Character, Character> map) implements Op, Transform {}
 
+    /** A {@code symbol} of 0 and a null {@code mode} come from the style (a bare {@code outline} line). */
     private record Outline(int line, char symbol, Effects.OutlineMode mode) implements Op {}
 
+    /** A {@code symbol} of 0 comes from the style ({@code shadow <width> <height>}). */
     private record Shadow(int line, char symbol, int width, int height) implements Op {}
 
     private record Variant(int line, String name, Map<Character, Character> map) {}
@@ -178,6 +186,15 @@ public final class SpriteParser {
 
     public static Sprite parse(String text, String source, String defaultName, PaletteResolver palettes)
             throws ParseException {
+        return parse(text, source, defaultName, palettes, false);
+    }
+
+    /**
+     * @param tiles true for a tileset's frames: without a {@code size} line they take the style's
+     *              tile size instead of being an error
+     */
+    static Sprite parse(String text, String source, String defaultName, PaletteResolver palettes, boolean tiles)
+            throws ParseException {
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         Map<String, Integer> directiveLines = new HashMap<>();
@@ -186,6 +203,8 @@ public final class SpriteParser {
         int width = -1, height = -1;
         String paletteName = null;
         int paletteLine = 0;
+        String styleName = null;
+        int styleLine = 0;
         int[] anchor = null;
         int anchorLine = 0;
         List<Block> blocks = new ArrayList<>();
@@ -270,6 +289,14 @@ public final class SpriteParser {
                         paletteLine = lineNo;
                     }
                 }
+                case "style" -> {
+                    if (tokens.length != 2) {
+                        errors.add(where + "expected 'style <name or file.style>'");
+                    } else {
+                        styleName = tokens[1];
+                        styleLine = lineNo;
+                    }
+                }
                 case "anchor" -> {
                     anchor = ints(tokens, 1, 2, where, "anchor <x> <y>", errors);
                     anchorLine = lineNo;
@@ -325,13 +352,28 @@ public final class SpriteParser {
         }
 
         // ---- checks that need the whole file ----
-        if (width < 0 && !directiveLines.containsKey("size")) errors.add(source + ": missing 'size <width> <height>'");
-        Palette palette = null;
-        if (paletteName == null) {
-            if (!directiveLines.containsKey("palette")) errors.add(source + ": missing 'palette <name>'");
-        } else {
-            palette = loadPalette(paletteName, source + ":" + paletteLine + ": ", palettes, errors);
+        // The style first: it may supply the palette, the tile size and bare outline/shadow colours.
+        Style style = loadStyle(styleName, source, styleLine, directiveLines.containsKey("style"), palettes, errors);
+        boolean styleFailed = style == null;
+        if (styleFailed) style = Style.BUILT_IN;
+        if (width < 0 && !directiveLines.containsKey("size")) {
+            if (tiles) {
+                width = style.tileWidth();
+                height = style.tileHeight();
+            } else {
+                errors.add(source + ": missing 'size <width> <height>'");
+            }
         }
+        Palette palette = null;
+        if (paletteName != null) {
+            palette = loadPalette(paletteName, source + ":" + paletteLine + ": ", palettes, errors);
+        } else if (style.palette() != null) {
+            palette = style.palette();
+        } else if (!styleFailed && !directiveLines.containsKey("palette")) {
+            errors.add(source + ": missing 'palette <name>' (or a 'style <name>' whose palette it uses)");
+        }
+        fillFromStyle(spriteEffects, style, styleFailed, source, errors);
+        for (Block b : blocks) fillFromStyle(b.ops, style, styleFailed, source, errors);
 
         int anchorX = width > 0 ? width / 2 : 0;
         int anchorY = height > 0 ? height - 1 : 0;
@@ -452,8 +494,66 @@ public final class SpriteParser {
         }
 
         if (!errors.isEmpty()) throw new ParseException(sortByLine(errors, source));
-        return new Sprite(name, width, height, palette, anchorX, anchorY, parts, frames, anims, variantMaps,
+        return new Sprite(name, width, height, palette, style, anchorX, anchorY, parts, frames, anims, variantMaps,
                 sortByLine(warnings, source));
+    }
+
+    /**
+     * The style a {@code style} line names, or the project's default style without one; null
+     * after an error. {@code lineWritten} is true when a style line was there, even a broken one,
+     * which then gets no default.
+     */
+    private static Style loadStyle(String name, String source, int line, boolean lineWritten,
+                                   PaletteResolver palettes, List<String> errors) {
+        if (name == null && lineWritten) return null;
+        String where = name != null ? source + ":" + line + ": " : source + ": ";
+        String label = name != null ? "style '" + name + "'" : "the default style (set in " + Styles.CONF + ")";
+        try {
+            return name != null ? palettes.style(name) : palettes.defaultStyle();
+        } catch (NoSuchFileException e) {
+            errors.add(where + label + " not found (" + e.getFile() + ")");
+        } catch (ParseException e) {
+            // One multi-line message, so sorting by line keeps the style's errors together.
+            errors.add(where + label + " has errors:\n  " + String.join("\n  ", e.errors()));
+        } catch (IOException e) {
+            errors.add(where + "cannot read " + label + ": " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Gives bare {@code outline} and {@code shadow <w> <h>} lines the style's colour (and mode).
+     * Where the style sets none, the line is an error and is dropped.
+     */
+    private static void fillFromStyle(List<Op> ops, Style style, boolean styleFailed, String source,
+                                      List<String> errors) {
+        String which = style.isBuiltIn() ? "the built-in style (this file names no style, and the project has no"
+                + " default style)" : "style '" + style.name() + "'";
+        for (var it = ops.listIterator(); it.hasNext(); ) {
+            Op op = it.next();
+            String where = source + ":" + op.line() + ": ";
+            if (op instanceof Outline o && o.symbol() == 0) {
+                if (style.hasOutline()) {
+                    it.set(new Outline(o.line(), style.outline(), o.mode() != null ? o.mode() : style.outlineMode()));
+                } else {
+                    if (!styleFailed) {
+                        errors.add(where + "'outline' without a colour takes it from the style, and " + which
+                                + " sets none; write 'outline <colour> [outer|selective]', like 'outline K'");
+                    }
+                    it.remove();
+                }
+            } else if (op instanceof Shadow s && s.symbol() == 0) {
+                if (style.hasShadow()) {
+                    it.set(new Shadow(s.line(), style.shadow(), s.width(), s.height()));
+                } else {
+                    if (!styleFailed) {
+                        errors.add(where + "'shadow <width> <height>' takes its colour from the style, and " + which
+                                + " sets none; write 'shadow <colour> <width> <height>', like 'shadow ~ 12 3'");
+                    }
+                    it.remove();
+                }
+            }
+        }
     }
 
     /** " (frames: a, b)", or a hint that the name is a part. */
@@ -677,11 +777,19 @@ public final class SpriteParser {
         };
     }
 
-    /** {@code outline <colour> [outer|selective]} */
+    /**
+     * {@code outline <colour> [outer|selective]}, or {@code outline [outer|selective]} in the
+     * style's colour (and the style's mode, when none is given).
+     */
     private static Outline parseOutline(String[] tokens, int lineNo, String where, List<String> errors) {
         String form = "outline <colour> [outer|selective]";
-        if (tokens.length < 2 || tokens.length > 3 || !isSymbol(tokens[1])) {
-            errors.add(where + "expected '" + form + "', like 'outline K'");
+        if (tokens.length == 1) return new Outline(lineNo, (char) 0, null);
+        if (tokens.length == 2 && (tokens[1].equals("outer") || tokens[1].equals("selective"))) {
+            return new Outline(lineNo, (char) 0, tokens[1].equals("outer")
+                    ? Effects.OutlineMode.OUTER : Effects.OutlineMode.SELECTIVE);
+        }
+        if (tokens.length > 3 || !isSymbol(tokens[1])) {
+            errors.add(where + "expected '" + form + "', like 'outline K' (or a bare 'outline' in the style's colour)");
             return null;
         }
         Effects.OutlineMode mode = Effects.OutlineMode.OUTER;
@@ -698,12 +806,22 @@ public final class SpriteParser {
         return new Outline(lineNo, tokens[1].charAt(0), mode);
     }
 
-    /** {@code shadow <colour> <width> <height>} */
+    /** {@code shadow <colour> <width> <height>}, or {@code shadow <width> <height>} in the style's colour. */
     private static Shadow parseShadow(String[] tokens, int lineNo, String where, List<String> errors) {
         String form = "shadow <colour> <width> <height>";
-        if (tokens.length != 4 || !isSymbol(tokens[1])) {
-            errors.add(where + "expected '" + form + "', like 'shadow ~ 12 3'");
+        boolean bare = tokens.length == 3 && tokens[1].matches("\\d{1,4}") && tokens[2].matches("\\d{1,4}");
+        if (!bare && (tokens.length != 4 || !isSymbol(tokens[1]))) {
+            errors.add(where + "expected '" + form + "', like 'shadow ~ 12 3' (or 'shadow <width> <height>'"
+                    + " in the style's colour)");
             return null;
+        }
+        if (bare) {
+            int w = Integer.parseInt(tokens[1]), h = Integer.parseInt(tokens[2]);
+            if (w < 1 || h < 1 || w > MAX_SIZE || h > MAX_SIZE) {
+                errors.add(where + "shadow size must be between 1 and " + MAX_SIZE);
+                return null;
+            }
+            return new Shadow(lineNo, (char) 0, w, h);
         }
         int[] wh = ints(tokens, 2, 2, where, form, errors);
         if (wh == null) return null;

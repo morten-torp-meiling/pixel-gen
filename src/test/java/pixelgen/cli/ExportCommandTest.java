@@ -154,6 +154,32 @@ class ExportCommandTest {
     }
 
     @Test
+    void aStyleChangeReachesTheSourcesThatUseIt() throws Exception {
+        run();
+        Files.createDirectories(tool.resolve("styles"));
+        Files.writeString(tool.resolve("styles/main.style"), "palette basic\n");
+        Files.writeString(tool.resolve("styles/main.md"), "# main\n");
+        Files.writeString(tool.resolve("styles/other.style"), "palette basic\n");
+        Files.writeString(tool.resolve("styles/other.md"), "# other\n");
+        run();
+        assertEquals("done: 0 exported, 2 unchanged, 0 removed, 0 failed", done(), "styles no file uses");
+
+        Files.writeString(tool.resolve("styles/styles.conf"), "default = main\n");
+        run();
+        assertEquals("done: 2 exported, 0 unchanged, 0 removed, 0 failed", done(), "a new default style");
+
+        Files.writeString(tool.resolve("styles/main.style"), "palette basic\nlight top-right\n");
+        run();
+        assertEquals("done: 2 exported, 0 unchanged, 0 removed, 0 failed", done(), "a setting of the style");
+
+        append("assets/blink.sprite", "style other\n");
+        run();
+        Files.writeString(tool.resolve("styles/main.style"), "palette basic\nshadow r\n");
+        run();
+        assertEquals("done: 1 exported, 1 unchanged, 0 removed, 0 failed", done(), "only the tileset uses main");
+    }
+
+    @Test
     void settingsErrors() throws Exception {
         assertEquals(2, run("--everything"));
         Files.writeString(tool.resolve("pixelgen.conf"), "godot.project = ../nowhere\n");

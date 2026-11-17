@@ -3,6 +3,7 @@ package pixelgen.godot;
 import pixelgen.model.Palette;
 import pixelgen.model.SeamCheck;
 import pixelgen.model.Sprite;
+import pixelgen.model.Style;
 import pixelgen.model.Tileset;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
@@ -59,7 +60,7 @@ public final class Exporter {
 
     /**
      * Parses a source and computes its hash, which covers everything its output depends on: the
-     * text, the palette's colours, the export settings and {@link #FORMAT}.
+     * text, the style's settings, the palette's colours, the export settings and {@link #FORMAT}.
      *
      * @param path   project-relative path, such as {@code assets/characters/farmer.sprite}
      * @param folder its folder below {@code assets/}, such as {@code characters} (empty at the top)
@@ -81,6 +82,12 @@ public final class Exporter {
                 .append("art ").append(config.art()).append('\n')
                 .append("scenes ").append(config.scenes()).append('\n')
                 .append("path ").append(path).append('\n');
+        Style st = sprite.style();
+        key.append("style ").append(st.name())
+                .append(" light ").append(st.light().word())
+                .append(" outline ").append(st.hasOutline() ? st.outline() + " " + st.outlineMode() : "none")
+                .append(" shadow ").append(st.hasShadow() ? String.valueOf(st.shadow()) : "none")
+                .append(" tile ").append(st.tileWidth()).append('x').append(st.tileHeight()).append('\n');
         Palette p = sprite.palette();
         key.append("palette ").append(p.name()).append('\n');
         for (Palette.Entry e : p.entries()) key.append(e.symbol()).append(' ').append(e.hex()).append('\n');

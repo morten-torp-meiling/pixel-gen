@@ -81,7 +81,7 @@ public final class ReviewSheet {
         for (Item it : parts) width = Math.max(width, it.x + it.cellWidth(scale) + PAD);
         int actualW = PAD + frames.size() * (sprite.width() * 3 + GAP) + PAD;
         width = Math.max(width, Math.min(actualW, MAX_WIDTH));
-        width = Math.max(width, 560);  // room for the title line
+        width = Math.max(width, 640);  // room for the title line
         int height = actualTop + actualH + PAD;
 
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
@@ -95,7 +95,8 @@ public final class ReviewSheet {
 
             g.setColor(TEXT);
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-            g.drawString(sprite.name() + "  " + sprite.width() + "x" + sprite.height() + "  palette "
+            String style = sprite.style().isBuiltIn() ? "" : "  style " + sprite.style().name();
+            g.drawString(sprite.name() + "  " + sprite.width() + "x" + sprite.height() + style + "  palette "
                     + sprite.palette().name() + "  scale " + scale + "x  anchor (" + sprite.anchorX() + ","
                     + sprite.anchorY() + ")", PAD, PAD + 16);
 

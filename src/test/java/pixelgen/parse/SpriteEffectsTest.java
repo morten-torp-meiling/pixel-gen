@@ -94,7 +94,8 @@ class SpriteEffectsTest {
     @Test
     void badEffectSyntax() {
         String frame = "frame a\n" + STICK + "end\n";
-        assertOneError(HEAD + "outline\n" + frame, "expected 'outline <colour> [outer|selective]'");
+        assertOneError(HEAD + "outline\n" + frame, "'outline' without a colour takes it from the style, and the "
+                + "built-in style");
         assertOneError(HEAD + "outline KK\n" + frame, "expected 'outline <colour> [outer|selective]'");
         assertOneError(HEAD + "outline . outer\n" + frame, "expected 'outline <colour> [outer|selective]'");
         assertOneError(HEAD + "outline K inner\n" + frame, "unknown outline mode 'inner'; expected outer or selective");

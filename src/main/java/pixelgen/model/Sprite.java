@@ -12,6 +12,7 @@ import java.util.Map;
  * @param width    frame width in pixels
  * @param height   frame height in pixels
  * @param palette  the palette every symbol comes from
+ * @param style    the sprite's style ({@link Style#BUILT_IN} when neither the file nor the project names one)
  * @param anchorX  pivot point, for example the feet of a character; defaults to bottom centre
  * @param anchorY  pivot point y
  * @param parts    reusable pieces, in file order; each may have its own size
@@ -21,7 +22,7 @@ import java.util.Map;
  * @param variants recoloured copies of the whole sprite: variant name to symbol mapping
  * @param warnings non-fatal problems, such as a frame with no pixels
  */
-public record Sprite(String name, int width, int height, Palette palette, int anchorX, int anchorY,
+public record Sprite(String name, int width, int height, Palette palette, Style style, int anchorX, int anchorY,
                      Map<String, Grid> parts, Map<String, Frame> frames, Map<String, Anim> anims,
                      Map<String, Map<Character, Character>> variants, List<String> warnings) {
 
@@ -40,7 +41,7 @@ public record Sprite(String name, int width, int height, Palette palette, int an
         parts.forEach((n, g) -> newParts.put(n, g.recolor(map)));
         Map<String, Frame> newFrames = new LinkedHashMap<>();
         frames.forEach((n, f) -> newFrames.put(n, new Frame(n, f.grid().recolor(map))));
-        return new Sprite(variantName, width, height, palette, anchorX, anchorY, newParts, newFrames, anims,
+        return new Sprite(variantName, width, height, palette, style, anchorX, anchorY, newParts, newFrames, anims,
                 Map.of(), List.of());
     }
 

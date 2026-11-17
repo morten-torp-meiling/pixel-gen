@@ -12,7 +12,9 @@ For any request to draw, animate or fix art, load the matching skill first; it h
 | An animation: walk, idle, swing, more directions, a looping effect | `pixel-animate` |
 | Ground tiles, terrain, transitions between grounds | `pixel-tileset` |
 
-The rules they apply are in [docs/style-guide.md](docs/style-guide.md) (how the art should look, with the self-review checklist) and [docs/format.md](docs/format.md) (the file formats and what every command writes).
+The rules they apply are in [docs/style-guide.md](docs/style-guide.md) (the rules every style shares, with the self-review checklist), the style's own guide in `styles/<name>.md` (its materials, outlines, light and grounds), and [docs/format.md](docs/format.md) (the file formats and what every command writes).
+
+**Styles:** each sprite or tileset has one, from its `style` line or the default in `styles/styles.conf` (`farm`). A style (`styles/<name>.style`) sets the palette, the light direction, the colours of bare `outline`/`shadow` lines and the tile size. `pg style` lists them.
 
 ## Commands
 
@@ -23,20 +25,21 @@ The rules they apply are in [docs/style-guide.md](docs/style-guide.md) (how the 
 ./gradlew exportAssets             # export assets/ into the Godot project (UP-TO-DATE when nothing changed)
 ```
 
-The launcher (`pg` in the docs) is `build/install/pixel-gen/bin/pixel-gen` from Git Bash, `build\install\pixel-gen\bin\pixel-gen.bat` from PowerShell. It only changes when `installDist` runs, so **run `./gradlew build installDist` after every code change**, or you'll be testing the old tool. Run it from the project folder: `assets/`, `palettes/` and `preview/` resolve from the current folder. `pg help` lists every command.
+The launcher (`pg` in the docs) is `build/install/pixel-gen/bin/pixel-gen` from Git Bash, `build\install\pixel-gen\bin\pixel-gen.bat` from PowerShell. It only changes when `installDist` runs, so **run `./gradlew build installDist` after every code change**, or you'll be testing the old tool. Run it from the project folder: `assets/`, `palettes/`, `styles/` and `preview/` resolve from the current folder. `pg help` lists every command.
 
-The main ones: `validate`, `review [--strip|--onion]`, `gif`, `tilecheck`, `mockup`, `export [--all]`. Everything else is in format.md's command table.
+The main ones: `style`, `validate`, `review [--strip|--onion]`, `gif`, `tilecheck`, `mockup`, `export [--all]`. Everything else is in format.md's command table.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `src/main/java/pixelgen/` | `Cli` (entry point, command registry); `cli/` (one class per command); `parse/` (palette, sprite, tileset, mockup parsers); `model/` (Grid, Palette, Sprite, Tileset, Terrain, Anim, Effects, SeamCheck, Colors); `render/` (renderers, review sheets, GIF, sheet packing); `godot/` (SpriteFrames, TileSet and scene writers, the exporter) |
+| `src/main/java/pixelgen/` | `Cli` (entry point, command registry); `cli/` (one class per command); `parse/` (palette, style, sprite, tileset, mockup parsers; `PaletteResolver` loads palettes and styles); `model/` (Grid, Palette, Style, Light, Sprite, Tileset, Terrain, Anim, Effects, SeamCheck, Colors); `render/` (renderers, review sheets, GIF, sheet packing); `godot/` (SpriteFrames, TileSet and scene writers, the exporter) |
 | `src/test/java/pixelgen/` | JUnit 6 tests, mirroring the main packages |
-| `src/test/resources/` | sample palettes, sprites, tilesets, and `golden/` (hand-written expected `.tres`/`.tscn`) |
-| `palettes/` | `farm.pal`, the game palette |
+| `src/test/resources/` | sample palettes, styles, sprites, tilesets, and `golden/` (hand-written expected `.tres`/`.tscn`) |
+| `palettes/` | the styles' palettes: `farm.pal` |
+| `styles/` | the styles (`<name>.style`, its guide `<name>.md`) and `styles.conf` with the default style |
 | `assets/` | the game's art sources; folders here become folders under `res://art/` in Godot |
-| `docs/` | `format.md`, `style-guide.md` |
+| `docs/` | `format.md`, `style-guide.md` (shared by all styles) |
 | `.claude/skills/` | `pixel-sprite`, `pixel-animate`, `pixel-tileset` |
 | `art-test/` | the early chest and farmer art test, its review rounds, and `NOTES.md` with the lessons that shaped the style guide |
 | `preview/` | review images and GIFs (git-ignored) |

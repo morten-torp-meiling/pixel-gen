@@ -1,10 +1,11 @@
 # pixel-gen file formats
 
-Reference for the three text formats pixel-gen reads and the one settings file:
+Reference for the text formats pixel-gen reads and its settings files:
 
 | File | Holds | Lives in |
 |---|---|---|
 | `.pal` | a palette: every colour a sprite may use, grouped into ramps | `palettes/` |
+| `.style` | a style: palette, light, outline and shadow colours, tile size, and its guide | `styles/` |
 | `.sprite` | a sprite: parts, frames, animations and recoloured variants | `assets/**` |
 | `.tileset` | tiles for a Godot TileMapLayer, in the sprite format | `assets/**` |
 | `.mockup` | a small map of a tileset's tiles, to check how they fit together | next to the tileset |
@@ -55,6 +56,43 @@ ramp effects unordered
 - `pg palette farm` checks the palette, lists it and writes `preview/palette-farm.png`, a swatch to judge the ramps by eye.
 - `pg palette import file.hex name` turns a Lospec `.hex` palette into `palettes/name.pal`, with symbols assigned in order and every colour in one unordered ramp. Sort the colours into ramps by hand afterwards.
 
+## Styles (`.style`)
+
+A style is a named look for a group of sprites and tilesets (the farm, the caves): the palette, where the light comes from, the defaults for `outline` and `shadow`, the tile size, and a guide with the style's own drawing rules.
+
+```
+# Caves and mines: cool stone, warm lantern light from the top right.
+style cave
+palette cave
+light top-right
+outline K outer
+shadow ~
+tile 16 16
+guide cave.md
+```
+
+| Line | Meaning |
+|---|---|
+| `style <name>` | Optional; the name defaults to the file name. |
+| `palette <name or file.pal>` | **Required.** The palette the style's files use, unless a file names another. |
+| `light <direction>` | Optional: `top-left` (the default), `top-right`, `bottom-left` or `bottom-right`. Selective outlines and terrain transitions follow it. |
+| `outline <colour> [outer\|selective]` | Optional: what a bare `outline` line draws (mode `outer` unless given). Without it, a bare `outline` is an error. |
+| `shadow <colour>` | Optional: the colour of `shadow <width> <height>`. Each sprite gives the size. |
+| `tile <width> <height>` | Optional: the size of tiles in tilesets with no `size` line; 16 16 unless set. |
+| `guide <file.md>` | Optional: the style's rules, next to the `.style` file; `<name>.md` unless set. A missing guide is a warning. |
+
+- Each line may appear once. Colours are checked against the style's palette.
+- **Finding a style.** `style cave` loads `styles/cave.style`; a value that ends in `.style` or contains `/` is a path from the project folder.
+- **The default style.** `styles/styles.conf` names the style of files without a `style` line:
+
+  ```
+  # The style of sprites and tilesets without a 'style' line.
+  default = farm
+  ```
+
+  Without that file (or its `default`), such files get the **built-in style**: they must name their palette, the light comes from the top left, bare `outline` and `shadow <w> <h>` lines are errors, and tiles are 16 × 16.
+- `pg style` lists the styles and the default; `pg style <name>` checks one and prints its settings. Both exit 1 when a style has errors.
+
 ## Sprites (`.sprite`)
 
 A sprite is a set of equally sized **frames** (finished images), built from optional reusable **parts**, with optional **animations** over the frames and recoloured **variants** of the whole thing.
@@ -100,7 +138,8 @@ variant mushroom_blue recolor e>b R>c E>B
 |---|---|
 | `sprite <name>` | Optional; defaults to the file name (`farmer.sprite` is `farmer`). |
 | `size <width> <height>` | **Required.** Frame size in pixels, 1 to 256 each. Characters are `16 32`, objects `16 16` or what they need. |
-| `palette <name or file.pal>` | **Required.** Where the symbols come from. |
+| `style <name or file.style>` | Optional: the sprite's style (see "Styles"). Defaults to the project's default style. |
+| `palette <name or file.pal>` | Where the symbols come from. **Required** unless the style names a palette; overrides the style's palette when given. |
 | `anchor <x> <y>` | The pivot, such as a character's feet: Godot puts this pixel on the node's position, and `shadow` centres on it. Defaults to the bottom centre, `width/2, height-1`. Must lie inside the frame. |
 
 Header lines may each appear once, anywhere in the file; the file is read whole before it's checked, so the order of statements doesn't matter (except inside a block).
@@ -142,9 +181,10 @@ Rows come first, then any number of operations, applied in the order written:
 - **`recolor <from>><to> ...`** swaps symbols in the image so far, all at once: `recolor a>b b>a` swaps two colours. `<to>` may be `.` to erase a colour; `<from>` can't be `.`.
 - **`outline <colour> [outer|selective]`** adds a 1 px outline around every solid shape, on its four sides (not diagonally, which keeps corners round). It only paints empty or translucent pixels, never the art.
   - `outer` (the default): every outline pixel is `<colour>`.
-  - `selective`: on the lit top and left sides, the outline takes the darkest shade of the ramp of the pixel it borders (a leaf gets a dark green edge); elsewhere `<colour>`. Matches light from the top left.
+  - `selective`: on the lit sides (from the style's `light`; the top and left for light from the top left), the outline takes the darkest shade of the ramp of the pixel it borders (a leaf gets a dark green edge); elsewhere `<colour>`.
+  - **`outline`** alone draws the style's outline colour and mode; **`outline outer`** and **`outline selective`** use the style's colour with that mode. It's an error when the style sets no outline.
   - An outline that would fall outside the frame is cut off, with a warning: leave 1 px free around the art.
-- **`shadow <colour> <width> <height>`** draws a filled ellipse, centred on the anchor's x, with its bottom row on the anchor's row. It only fills empty pixels, so it sits behind the art. Use a translucent colour (`~` in `farm`). For characters, keep the bottom row of the frame free (feet on row 30 of 32, anchor `8 31`) so the shadow shows below the feet.
+- **`shadow <colour> <width> <height>`** draws a filled ellipse, centred on the anchor's x, with its bottom row on the anchor's row. It only fills empty pixels, so it sits behind the art. Use a translucent colour (`~` in `farm`). **`shadow <width> <height>`** uses the style's shadow colour (an error when the style sets none). For characters, keep the bottom row of the frame free (feet on row 30 of 32, anchor `8 31`) so the shadow shows below the feet.
 
 ### Derived frames
 
@@ -191,7 +231,7 @@ A recoloured copy of the whole sprite (every part and frame, same animations), e
 
 ### Checks
 
-Errors: missing `size` or `palette`, rows of the wrong width or count, symbols not in the palette (the first 10 per grid are listed), unknown parts or frames, duplicate names, a frame with no rows and no stamps, rows after an operation, a block without `end`. Warnings: a frame or part with no visible pixels, stamps and effects cut off at the frame edge.
+Errors: missing `size` or `palette` (when the style names none), a style that's missing or has errors (also the default one), a bare `outline` or `shadow <w> <h>` the style has no colour for, rows of the wrong width or count, symbols not in the palette (the first 10 per grid are listed), unknown parts or frames, duplicate names, a frame with no rows and no stamps, rows after an operation, a block without `end`. Warnings: a frame or part with no visible pixels, stamps and effects cut off at the frame edge.
 
 ## Tilesets (`.tileset`)
 
@@ -231,7 +271,7 @@ variant ground_autumn recolor g>o G>O
 | Line | Meaning |
 |---|---|
 | `tileset <name>` | In place of `sprite`; optional, defaults to the file name. |
-| `size <w> <h>` | Optional; **16 16** unless set. |
+| `size <w> <h>` | Optional; the style's `tile` size unless set (**16 16** by default). |
 | `columns <n>` | Optional: tiles per row in the atlas image (1 to 256). Defaults to the tile count, at most 8. |
 | `tile <name> [wrap both\|x\|y\|none]` | In place of `frame`. `wrap` says which edges must meet when the tile repeats: `both` (the default, plain ground), `x` (left and right only: the top edge of a path), `y` (top and bottom only), `none` (corners, single pieces). |
 | `anim`, `anchor`, `sprite`, `frame` | Not allowed. Tiles don't animate (yet) and sit on the grid. |
@@ -267,7 +307,7 @@ end
 
 - **Profiles** describe the raised ground. One number per column (`n`, `s`) or per row (`w`, `e`): how many pixels of raised ground reach in from that side. The name starts with its side; anything after it names a version (`n2`, `n_wide`). A tile using a profile repeats seamlessly when the profile starts and ends at the same depth (a warning says when it doesn't), and profiles of the same side should share their end depths so their tiles meet (also warned about).
 - **`blend <terrain> <profiles>`** makes the whole tile: raised ground where any of the profiles reaches (`n|w`, an outer corner), or only where all of them do (`n&w`, an inner corner). It comes first in a tile without grid rows; `stamp` and `recolor` lines after it touch the result up.
-- **The light rule** (light from the top left, raised ground standing higher): `bank` on raised ground facing lower ground below or right, `lip` on raised ground facing it above or left, `shadow` on lower ground just below or right of raised ground. Leave any of them out for a plain boundary. Points just outside the tile follow the same profiles, so the edges of a tile are shaded as if its neighbours were there.
+- **The light rule** (raised ground standing higher), with light from the top left: `bank` on raised ground facing lower ground below or right, `lip` on raised ground facing it above or left, `shadow` on lower ground just below or right of raised ground. Light from another corner (the style's `light`) mirrors the sides: from the top right, the bank faces down and left. Leave any of them out for a plain boundary. Points just outside the tile follow the same profiles, so the edges of a tile are shaded as if its neighbours were there.
 - `assets/tiles/ground.tileset` uses it for the full grass–dirt set: 4 edges, 4 outer corners, 4 inner corners and a second version of each edge.
 
 ### The seam check
@@ -315,6 +355,7 @@ scenes = true
 
 | Command | Reads | Writes |
 |---|---|---|
+| `pg style [<name>]` | styles | report only: the styles and the default, or one style's settings |
 | `pg validate [file\|folder ...]` | sprites, tilesets | report only; default `assets/` |
 | `pg render <...> [--scale N] [--frame f]` | sprites, tilesets | `preview/<sprite>/<frame>.png` |
 | `pg review <...> [--strip] [--onion]` | sprites, tilesets | `preview/<sprite>/review.png` (or `strip.png`, `onion.png`) |
@@ -338,7 +379,7 @@ scenes = true
   - `<name>.tres`: a `SpriteFrames` resource. Each animation keeps its name, `fps` (as speed), looping and per-frame durations. Each frame no animation uses becomes a one-frame animation named after the frame, so still sprites can be switched with `play("open")`.
   - `<name>.tscn` (when `scenes = true`): an AnimatedSprite2D using those frames, with the texture filter on Nearest, Centered off and Offset at minus the anchor (so the anchor sits on the node's position), and the first animation set to autoplay. Autoplay starts when the game runs, not in the editor. The export rewrites this file: put it inside your own scenes rather than editing it.
 - **A tileset** and each variant become `<name>.png` (the atlas, tiles in file order, `columns` per row) and `<name>.tres`, a `TileSet` whose tiles are ready to paint. A custom data layer `name` holds each tile's name: `tile_data.get_custom_data("name")`.
-- Only sources that changed since the last export are written again (their text, their palette's colours or the settings), plus any whose files were deleted from the Godot project. `--all` writes everything.
+- Only sources that changed since the last export are written again (their text, their style's settings, their palette's colours or the settings), plus any whose files were deleted from the Godot project. `--all` writes everything.
 - Files the export wrote before but no longer writes (a deleted sprite or variant) are removed, with their `.import` files. Nothing else in the Godot project is touched.
 - Godot's uid in a `.tres` or `.tscn` header is kept when the file is overwritten, so scenes that use it keep working.
 - Set the texture filter to **Nearest** on nodes you set up by hand (or project-wide under Rendering > Textures > Default Texture Filter); the generated scenes already have it.

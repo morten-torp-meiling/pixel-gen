@@ -2,7 +2,13 @@
 
 How the game's art should look, and the rules that get it there. It's written for whoever draws the sprites as text (mostly Claude), so every rule is something you can check in a grid. The file syntax is in [format.md](format.md).
 
-**The look:** a cozy farming game seen from above at a slant (top-down 3/4 view), on a 16 px grid, with soft shading, clear outlines and a warm palette. The conventions (scale, perspective, light) are common to the genre; **every asset is original.** Don't copy, trace or closely imitate any existing game's sprites, characters, tiles or palette.
+**The look:** a cozy game seen from above at a slant (top-down 3/4 view), on a 16 px grid, with soft shading and clear outlines. The conventions (scale, perspective, light) are common to the genre; **every asset is original.** Don't copy, trace or closely imitate any existing game's sprites, characters, tiles or palette.
+
+## Styles: this guide and the style's own guide
+
+Every sprite and tileset has a **style** (a `styles/<name>.style` file): the file's `style` line, or the project default named in `styles/styles.conf` (`farm`). The style sets the palette, where the light comes from, the outline and shadow colours and the tile size; `pg style <name>` prints them. Its guide, `styles/<name>.md`, holds the rules that belong to that look: which ramp each material uses, where outlines are full or selective, the grounds things stand on, shadow sizes.
+
+**This guide holds the rules every style shares.** Read both before drawing. Where the style's guide says something more specific, it wins. Examples here use the farm palette's symbols (`K` outline, `k` soft outline, `W w V v` wood); in another style, use its symbols for the same roles.
 
 ## 1. Scale and grid
 
@@ -10,7 +16,7 @@ One art pixel is one game pixel, always. Never scale a sprite up or down to fit;
 
 | Thing | Size (w × h) | Anchor | Notes |
 |---|---|---|---|
-| Ground tile | 16 × 16 | — | The unit of the world. |
+| Ground tile | 16 × 16 | — | The unit of the world (the style's `tile` size). |
 | Character | 16 × 32 | `8 31` | Feet on row 30, row 31 empty for the shadow. |
 | Small object, item, crop | 16 × 16 | bottom centre | A chest, a pot, a seedling. |
 | Tall object, grown crop, bush | 16 × 32 | bottom centre | Base on the bottom rows. |
@@ -33,31 +39,33 @@ We look down at about 45°, so **both the top and the front of things show**.
 
 ## 3. Light
 
-**Light comes from the top left, everywhere,** for every sprite and every tile.
+**The light comes from the style's direction (its `light` line), everywhere,** for every sprite and every tile. The rules below say "lit side" and "shaded side"; with light from the top left (farm), the lit side is the left and the shaded side the right. With light from the top right, swap them.
 
 - **Top surfaces are the lightest, fronts the middle shades, undersides the darkest.**
-- Within a surface, the **left edge is one shade lighter and the right edge one shade darker** than the middle.
+- Within a surface, the **lit edge is one shade lighter and the shaded edge one shade darker** than the middle.
 - **A lit lip** (one row of the lightest shade) where a top surface meets a front reads as an edge catching the light.
 - **A dark row directly under an overhang** (a lid, a roof, a hat brim) gives depth.
-- **Cast shadows** fall straight down onto the ground under things. Characters and loose objects get the `shadow` effect (`shadow ~ 12 3` for a character); big fixed objects can have a shadow drawn into the ground pixels around their base.
+- **Cast shadows** fall straight down onto the ground under things. Characters and loose objects get the `shadow` effect (`shadow 12 3` for a character, in the style's shadow colour); big fixed objects can have a shadow drawn into the ground pixels around their base.
+- `outline selective` and terrain transitions follow the style's light by themselves; your shading has to match them.
 
-Flipping a sprite mirrors its light: a frame made with `flipx` is lit from the top right. Small, symmetric things (most front views) don't show it; for side views, see section 9.
+Flipping a sprite mirrors its light: a frame made with `flipx` is lit from the other side. Small, symmetric things (most front views) don't show it; for side views, see section 9.
 
 ## 4. Palette and colour
 
-Use **only `palettes/farm.pal`** unless a new palette is agreed on. Each ramp runs dark to light, and its shades already lean cool and purple in the shadows and warm in the lights, so shading with one ramp gives colour shifts for free.
+Use **only the style's palette** (its `palette` line), unless a file has a good reason to name another. Each ramp runs dark to light, and good ramps already lean cool in the shadows and warm in the lights, so shading with one ramp gives colour shifts for free.
 
-- **Each material uses one ramp, 3–5 shades of it.** Wood: `W w V v`. Leaves: `F G g L l`. Skin: `J j S s`.
+- **Each material uses one ramp, 3–5 shades of it.** The style's guide says which ramp is which material.
 - **Shade by stepping along the ramp,** one step at a time. Skipping two steps reads as a hard edge, which is right for a crease or contact line and wrong for a curve.
-- **Don't mix ramps for shading** (no brown shadows on green leaves). The one exception is the outline colours `K` and `k`.
-- **Accents** (gold, red, violet) are for small things that should catch the eye: a lock, a flower, a blush. Keep them small.
-- **Translucent colours are for effects only** (`~`, the shadow). Art pixels are opaque.
+- **Don't mix ramps for shading** (no brown shadows on green leaves). The one exception is the outline colours (`K` and `k` in farm).
+- **Accents** (gold, red, violet in farm) are for small things that should catch the eye: a lock, a flower, a blush. Keep them small.
+- **Translucent colours are for effects only** (the shadow). Art pixels are opaque.
 
 ## 5. Outlines
 
-- **`K` (near-black) is for the silhouette only:** the outer edge of a sprite against the world.
-- **Lines inside a shape** (an arm against the torso, the line between lid and body, the folds of a shirt) use the soft outline `k` or the darkest shade of the material. Black lines inside a shape look heavy.
-- **Selective outline:** on the lit top and left, the outline may take the darkest shade of the material it touches instead of `K`; `outline K selective` does this automatically. Use it on organic shapes (bushes, trees, crops) and soft materials. Keep the full `K` outline on characters, so they read against any ground.
+- **The darkest outline colour (`K` in farm) is for the silhouette only:** the outer edge of a sprite against the world.
+- **Lines inside a shape** (an arm against the torso, the line between lid and body, the folds of a shirt) use the soft outline (`k` in farm) or the darkest shade of the material. Black lines inside a shape look heavy.
+- **Selective outline:** on the lit sides, the outline may take the darkest shade of the material it touches instead of the outline colour; `outline selective` does this automatically, lit from the style's direction. Which things get a selective outline and which a full one is the style's choice (its guide says); keep characters' outlines full in every style, so they read against any ground.
+- **A bare `outline` line** draws the style's outline colour and mode; `outline K outer` and `outline K selective` say it explicitly.
 - **Ground tiles have no outlines.** Neither do decals that lie flat on the ground (paths, puddles, flowers in the grass): their edge is a colour change.
 - **Outlines are one pixel wide** and connect on the four sides (no diagonal-only joins, which look broken), as the `outline` effect draws them.
 
@@ -84,7 +92,7 @@ K.....             K.....
 ..K...             .KK...
 ```
 
-**No pillow shading.** Shading that follows the outline all the way round (dark rim, light centre) makes everything look like a cushion. Shade from the light: light at the top left, dark at the bottom right.
+**No pillow shading.** Shading that follows the outline all the way round (dark rim, light centre) makes everything look like a cushion. Shade from the light: light on the lit side, dark on the shaded side. Lit from the top left:
 
 ```
 good, lit top left      bad, pillow shaded
@@ -102,13 +110,13 @@ KVwwwWWK                KwVVVVwK
 
 **No full-width dark rows.** A dark row across a whole object reads as a stripe. Wood grain, planks and stitching are short 2–3 px dashes, offset from row to row.
 
-**No dithering** (checkerboard mixes of two shades) by default; at 16 px it looks noisy. Use more shades of the ramp instead.
+**No dithering** (checkerboard mixes of two shades) unless the style's guide allows it; at 16 px it looks noisy. Use more shades of the ramp instead.
 
 ## 7. Readability
 
 - **Judge at 1× and 2×,** in the actual-size row of the review image, not only enlarged. Something that only reads at 8× doesn't read in the game.
 - **The silhouette should say what it is** without any interior detail. Fill it with one colour in your head: is it still a chest, a person, a tree?
-- **Contrast with the ground.** Most of the screen is green grass and brown soil; things standing on it need their outline, a lighter top, or a contrasting ramp to stand out.
+- **Contrast with the ground.** Most of the screen is the style's main grounds (its guide names them); things standing on them need their outline, a lighter top, or a contrasting ramp to stand out.
 - **Details sit on seams and edges:** a lock across the lid line, a buckle on a belt, a knot where a branch meets the trunk.
 - **Volume comes from overlap:** a lid 1 px wider than the body, bands that wrap over the top, a brim that overhangs the face.
 
@@ -120,20 +128,20 @@ KVwwwWWK                KwVVVVwK
 |---|---|
 | 1–14 | Head and hair: a large head (almost half the height) keeps faces readable and cozy. |
 | 14–15 | Chin and collar: a collar or neckline breaks the line between head and body. |
-| 15–21 | Torso and arms. Arms are separated from the torso by `k`, not `K`. |
+| 15–21 | Torso and arms. Arms are separated from the torso by the soft outline, not the silhouette colour. |
 | 22 | Belt. |
 | 23–30 | Legs and boots; the boots' outline ends on row 30. |
-| 31 | Empty: the shadow (`shadow ~ 12 3`) shows here. |
+| 31 | Empty: the shadow (`shadow 12 3`) shows here. |
 
 **Faces at 16 px:**
 - Eyes are 1 × 2 dark pixels, 4 px apart, centred.
-- One blush pixel (`r`) under each eye; a 2 px mouth in the skin shadow colour.
+- One blush pixel (an accent) under each eye; a 2 px mouth in the skin shadow colour.
 - The face is at least 10 px wide; keep side hair short.
 - A fringe is 2–3 clumps pointing down, with skin showing between them.
 
 **Build characters from parts** (`head`, `torso`, `legs_*`), so every frame and direction reuses the same pieces and nothing drifts. **Clothes and hair colours are variants** (`variant farmer_blue recolor e>b E>B R>c`): draw one character, recolour the rest.
 
-Front views are almost symmetric: draw one half carefully, mirror it, then fix the light (the right side one shade darker).
+Front views are almost symmetric: draw one half carefully, mirror it, then fix the light (the shaded side one shade darker).
 
 ## 9. Animation
 
@@ -152,28 +160,29 @@ Front views are almost symmetric: draw one half carefully, mirror it, then fix t
 - **The anchor never moves.** Feet stay on row 30 in every frame, including jumps (draw the body higher, not the feet lower).
 - **Keep the body stable in a walk.** Check with `pg review --onion`: in a good walk, the onion skin shows red only around the legs and arms. Red on the head or outline means the body jitters.
 - **Every frame is a full pose.** Don't let a part vanish for a frame (a hand, an eye); it reads as a flicker.
-- **Directions:** draw down, up and right; derive left with `frame left_0 from right_0 flipx`. The flip makes the left-facing frames lit from the top right. On a 16 px character that's usually acceptable. Where it shows (a strong highlight on one side), fix the left frames with `recolor`, or draw them.
+- **Directions:** draw down, up and one side; derive the other side with `flipx` (`frame left_0 from right_0 flipx`). The flip mirrors the light, so the derived frames are lit from the wrong side. On a 16 px character that's usually acceptable. Where it shows (a strong highlight on one side), fix the derived frames with `recolor`, or draw them.
 - Watch it move: `pg gif` and open the GIF; judge the rhythm at 1×.
 
 ## 10. Tiles
 
-- **16 × 16, no outlines, low contrast.** Ground is the background: texture with neighbouring shades of one ramp (`g` with specks of `G` and `L`), never anything that pops out.
+- **The style's tile size (16 × 16), no outlines, low contrast.** Ground is the background: texture with neighbouring shades of one ramp (in farm, `g` with specks of `G` and `L`), never anything that pops out.
 - **Every base tile repeats seamlessly** both ways. `pg tilecheck` must pass. Texture may cross the edge, as long as it continues on the opposite side (a tuft split between the right and left columns).
 - **Repetition shows.** A 4 × 4 field of one grass tile shows its pattern clearly. Draw 2–4 versions of each base tile (`tile grass_b from grass flipx`, plus hand-varied ones), and mix them on the map.
 - **Avoid unique features in base tiles.** One big flower or rock in a grass tile is seen at every repeat; put it in a separate decoration tile or object instead.
-- **Transitions** (grass meeting dirt) are their own tiles: an edge tile repeats only along its edge (`wrap x` for a top or bottom edge, `wrap y` for a side), and corners don't repeat (`wrap none`). The higher ground's edge gets a lit lip on the top and left, and a dark row where it drops on the bottom and right.
+- **Transitions** (grass meeting dirt) are their own tiles: an edge tile repeats only along its edge (`wrap x` for a top or bottom edge, `wrap y` for a side), and corners don't repeat (`wrap none`). The higher ground's edge gets a lit lip on the lit sides, and a dark row where it drops on the shaded sides; a `terrain` block draws both, following the style's light.
 - **The same light everywhere:** tiles follow section 3 like everything else.
 
 ## 11. Self-review checklist
 
 Go through it for every sprite before calling it done:
 
-1. `pg validate` passes, with no warnings left unexplained.
-2. `pg review`: at 1× and 2× the silhouette reads, and the thing stands out from grass and soil.
-3. Light from the top left: tops lightest, left edges lighter, right edges and undersides darker, cast shadow below.
-4. `K` only on the silhouette; inside lines use `k` or the material's darkest shade.
+1. `pg validate` passes, with no warnings left unexplained, and shows the style you meant.
+2. `pg review`: at 1× and 2× the silhouette reads, and the thing stands out from the style's main grounds.
+3. Light from the style's direction: tops lightest, lit edges lighter, shaded edges and undersides darker, cast shadow below.
+4. The silhouette colour only on the silhouette; inside lines use the soft outline or the material's darkest shade.
 5. No jaggies, doubled pixels, pillow shading, banding, stray specks or full-width dark rows.
-6. Only palette colours; one ramp per material; accents kept small.
+6. Only the style's palette; one ramp per material (as the style's guide assigns them); accents kept small.
 7. The anchor is at the base, with 1 px free around the art.
 8. Animations: `pg review --onion` shows only the moving parts in red; the GIF's rhythm looks right at 1×.
 9. Tiles: `pg tilecheck` passes, and the repeat looks even, without a visible pattern.
+10. Anything the style's guide adds to this list.

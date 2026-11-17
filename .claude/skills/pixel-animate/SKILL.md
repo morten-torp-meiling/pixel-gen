@@ -9,6 +9,7 @@ An animation is a list of frames played at a rate (`anim walk_down fps 8 loop: d
 
 Read before animating (once per session):
 - `docs/style-guide.md`: sections 8 (characters) and 9 (animation), plus 3 for the light.
+- The sprite's style: its `style` line or the project default. Read `styles/<name>.style` (which way the light comes from, the shadow colour) and its guide `styles/<name>.md` (ramps, outlines, shadow sizes), as the `pixel-sprite` skill describes.
 - `docs/format.md`: parts, `stamp`, derived frames and `anim`.
 - The `pixel-sprite` skill for the tool setup and drawing workflow. Run `./gradlew installDist -q` first; `pg` below means `build/install/pixel-gen/bin/pixel-gen`.
 
@@ -51,7 +52,7 @@ end
 
 Rules from the style guide that matter most here:
 - **Move parts, not the whole frame.** Body bob = the `top` part 1 px lower on contact frames, while the legs stay put. `frame x from y shift 0 1` moves the feet too, which looks like the whole sprite jumps.
-- **The anchor never moves:** feet end on row 30 in every frame, row 31 stays empty for the shadow. Put `shadow ~ 12 3` at the sprite level, so every frame gets the same shadow.
+- **The anchor never moves:** feet end on row 30 in every frame, row 31 stays empty for the shadow. Put `shadow 12 3` (the style's shadow colour) at the sprite level, so every frame gets the same shadow.
 - **Every frame is a full pose.** No part disappears for a frame.
 
 ### Standard cycles
@@ -64,7 +65,7 @@ Rules from the style guide that matter most here:
 
 ### Left from right
 
-`frame left_0 from right_0 flipx` makes the left frames free, and `anim walk_left fps 8 loop: left_1 left_0 left_2 left_0` uses them. The flip mirrors the light: left-facing frames are lit from the top right. On a 16 px character that's usually fine. If it shows (a strong highlight on one side), add `recolor` to the derived frames or draw them. Tell the user it's flipped.
+`frame left_0 from right_0 flipx` makes the left frames free, and `anim walk_left fps 8 loop: left_1 left_0 left_2 left_0` uses them. The flip mirrors the light: the flipped frames are lit from the side opposite the style's light (from the top right in farm). On a 16 px character that's usually fine. If it shows (a strong highlight on one side), add `recolor` to the derived frames or draw them. Tell the user it's flipped.
 
 ## 4. Check the motion
 

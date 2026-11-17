@@ -9,6 +9,7 @@ Tiles are the background the whole game sits on, so they follow different priori
 
 Read before drawing (once per session):
 - `docs/style-guide.md`: section 10 (tiles), plus 3 (light) and 4 (palette).
+- The tileset's style: its `style` line, the style the user asks for, or the project default (`pg style` names it). Read `styles/<name>.style` (palette, light, tile size), its guide `styles/<name>.md` (the grounds and their ramps, how transitions are shaded) and its palette.
 - The `pixel-sprite` skill for the tool setup and the drawing passes. Run `./gradlew installDist -q` first; `pg` below means `build/install/pixel-gen/bin/pixel-gen`.
 
 ## 1. Plan the tileset
@@ -16,7 +17,7 @@ Read before drawing (once per session):
 - **One `.tileset` file per TileMapLayer.** A Godot TileMapLayer paints from one TileSet, and each file exports as one. Ground that's painted together (grass, dirt, and the edges between them) goes in one file: `assets/tiles/ground.tileset`.
 - **Base tiles:** one per kind of ground, plus **2–4 versions of each** that's painted over large areas (grass, dirt).
 - **Transitions:** for each pair of grounds that meet (dirt patches in grass), a set of 12: 4 edges, 4 outer corners, 4 inner corners (below).
-- **Size:** 16 × 16 (the default; leave out `size`).
+- **Style and size:** add `style <name>` unless it's the default style. Tiles take the style's tile size (16 × 16); leave out `size`.
 
 ## 2. Base tiles
 
@@ -48,7 +49,7 @@ Order the file so the atlas reads like this picture: with `columns 4`, the rows 
 
 **How to make them: one `terrain`, one `blend` line per tile** (syntax in `docs/format.md`, "Transitions: terrain and blend"; `assets/tiles/ground.tileset` is the worked example):
 - **Textures are parts.** Put each base texture in a part (`part grass_tex`, `part dirt_tex`) and make the base tile just `stamp grass_tex 0 0`. The terrain uses the same parts, so transition tiles match the base tiles exactly where they meet.
-- **Write the `terrain` block:** `raised` is the higher ground (grass), `lower` the ground it meets (dirt), and the light symbols: `bank G`, `lip L`, `shadow D`. Grass stands slightly above dirt, so with light from the top left it casts a dark row onto the dirt below and right of it, and catches the light where the dirt is above or left of it. The terrain applies this everywhere, corners included.
+- **Write the `terrain` block:** `raised` is the higher ground (grass), `lower` the ground it meets (dirt), and the light symbols (in farm: `bank G`, `lip L`, `shadow D`). Grass stands slightly above dirt, so with light from the top left it casts a dark row onto the dirt below and right of it, and catches the light where the dirt is above or left of it. The terrain applies this everywhere, corners included, mirrored for the style's light (from the top right, the dark row falls below and left).
 - **Draw the boundary as profiles:** `n`, `s`, `w`, `e`, one number per column or row for how far the grass reaches in. The boundary wobbles 1–2 px, never a ruler-straight line, and **every profile starts and ends at the same depth** (5 in `ground.tileset`): that's what lets a tile sit next to a copy of itself, and edges meet corners. The tool warns when a profile doesn't.
 - **Make each tile with `blend`:** edges `blend grass_dirt n`, outer corners `n|w` (grass from either side), inner corners `n&w` (grass only where both reach). Second edge versions use second profiles (`n2`). Hand touch-ups go after the `blend` line (`stamp`, `recolor`).
 - **Then review the result like any drawing.** The tool draws the rule, not judgement: look for single-pixel spikes where a profile steps by 2 or more, and smooth the profile rather than patching tiles.

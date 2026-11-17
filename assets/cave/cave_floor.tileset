@@ -1,0 +1,148 @@
+# Cave ground for one TileMapLayer: the cave floor, a raised rock shelf, and every transition
+# between them. Cave style: light from the top right, so pebbles cast their dark pixel down and
+# to the left, and the rock shelf's lit lip is on its top and right edges.
+#
+# Atlas order (columns 4) reads like a floor patch in rock: corners and edges around the floor,
+# inner corners on the right, then the base tiles and the second edge versions.
+tileset cave_floor
+style cave
+columns 4
+
+# Packed earth: 'd' with a few pebbles (T, lit on the right with t, shadow D below-left),
+# lone pebble specks, and small pits (D) in varied shapes, so no direction dominates.
+part floor_tex
+  dddddddddddddddd
+  ddTTdddddddddddd
+  dDddddddddddDddd
+  ddddddddddddDddd
+  dddddddddTdddddd
+  dddddddddddddddd
+  ddddDDdddddddddd
+  ddddddddddddTtdd
+  dddddddddddDdddd
+  dTdddddddddddddd
+  dddddddDDddddddd
+  dddddddddddddddd
+  ddddddddddddddTd
+  dddTTddddddddddd
+  ddDddddddDdddddd
+  dddddddddDdddddd
+end
+
+# The rock shelf's flat top: 'Z' with short cracks (x) running different ways, and lit specks (z).
+part rock_tex
+  ZZZZZZZZZZZZZZZZ
+  ZZZZZZZZZxxxZZZZ
+  ZZzZZZZZZZZZZZZZ
+  ZZZZZZZZZZZZZZZZ
+  ZZZZxZZZZZZZZZzZ
+  ZZZZxZZZZZZZZZZZ
+  ZZZZZZZZZZxxZZZZ
+  ZZZZZZZZZZZZZZZZ
+  ZzZZZZZZZZZZZZZZ
+  ZZZZZZxxxZZZZZZZ
+  ZZZZZZZZZZZZZxZZ
+  ZZZZZZZZZZZZZxZZ
+  ZZZZZZZzZZZZZZZZ
+  ZxxZZZZZZZZZZZZZ
+  ZZZZZZZZZZZzZZZZ
+  ZZZZZZZZZZZZZZZZ
+end
+
+# Rock meeting floor. Each profile is how many rows (n, s) or columns (w, e) of rock reach in
+# from that side; all start and end at 5. With light from the top right: rock with floor below
+# or left of it is the bank x, rock with floor above or right of it the lit lip z, and floor
+# just below or left of rock gets the shadow D.
+terrain rock_floor
+  raised rock_tex
+  lower floor_tex
+  bank x
+  lip z
+  shadow D
+  n  5 5 5 6 6 6 5 4 4 4 5 5 6 5 5 5
+  s  5 5 4 4 5 6 6 6 5 5 4 4 5 5 5 5
+  w  5 5 6 6 5 5 5 4 4 5 6 6 6 5 5 5
+  e  5 5 4 4 4 5 6 6 5 5 5 4 5 6 5 5
+  # Second versions, so long edges don't repeat their wobble every tile.
+  n2 5 6 6 5 5 4 4 5 5 6 6 6 5 4 4 5
+  s2 5 5 6 6 6 5 5 4 4 5 5 6 5 4 5 5
+  w2 5 4 4 5 5 6 6 5 4 4 5 5 6 6 5 5
+  e2 5 6 6 5 4 4 5 5 6 6 6 5 4 4 5 5
+end
+
+# Outer corners combine two edges (|); inner corners are where both reach (&).
+tile floor_corner_nw wrap none
+  blend rock_floor n|w
+end
+tile floor_edge_n wrap x
+  blend rock_floor n
+end
+tile floor_corner_ne wrap none
+  blend rock_floor n|e
+end
+tile floor_inner_nw wrap none
+  blend rock_floor n&w
+end
+tile floor_edge_w wrap y
+  blend rock_floor w
+end
+tile floor
+  stamp floor_tex 0 0
+end
+tile floor_edge_e wrap y
+  blend rock_floor e
+end
+tile floor_inner_ne wrap none
+  blend rock_floor n&e
+end
+tile floor_corner_sw wrap none
+  blend rock_floor s|w
+end
+tile floor_edge_s wrap x
+  blend rock_floor s
+end
+tile floor_corner_se wrap none
+  blend rock_floor s|e
+end
+tile floor_inner_sw wrap none
+  blend rock_floor s&w
+end
+tile rock
+  stamp rock_tex 0 0
+end
+tile rock_b from rock flipx
+# Gravelly floor: more pebbles and lit specks, fewer pits.
+tile floor_c
+  ddddTddddddddddd
+  dddDddddddTtdddd
+  dddddddddDdddddd
+  dTTddddddddddddd
+  Ddddddddddddddtd
+  ddddddTTdddddddd
+  dddddDddddddDDdd
+  dddddddddddddddd
+  dddddddddTddddTT
+  ddDDdddddddddDdd
+  dddddddddddddddd
+  ddddTtdddddddddd
+  dddDdddddddTTddd
+  ddddddddddDddddd
+  dtddddddDDdddddd
+  dddddddddddddddd
+end
+tile floor_inner_se wrap none
+  blend rock_floor s&e
+end
+tile floor_edge_n_b wrap x
+  blend rock_floor n2
+end
+tile floor_edge_s_b wrap x
+  blend rock_floor s2
+end
+tile floor_edge_w_b wrap y
+  blend rock_floor w2
+end
+tile floor_edge_e_b wrap y
+  blend rock_floor e2
+end
+tile floor_b from floor flipy

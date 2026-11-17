@@ -1,0 +1,29 @@
+# A floor chamber in rock with every transition piece: four outer corners, a rock notch into
+# the top and one into the bottom (all four inner corners), long edges mixing both versions,
+# and a gravel patch. Check with:
+#   pg mockup assets/cave/cave_floor.tileset assets/cave/chamber.mockup
+r = rock rock_b
+f = floor floor_b
+c = floor_c
+1 = floor_corner_nw
+2 = floor_corner_ne
+3 = floor_corner_sw
+4 = floor_corner_se
+n = floor_edge_n floor_edge_n_b
+s = floor_edge_s floor_edge_s_b
+w = floor_edge_w floor_edge_w_b
+e = floor_edge_e floor_edge_e_b
+a = floor_inner_nw
+b = floor_inner_ne
+d = floor_inner_sw
+g = floor_inner_se
+map
+  rrrrrrrrrrrr
+  r1n2rr1n2rrr
+  rwfbnnaferrr
+  rwffccfferrr
+  rwffccfferrr
+  rwffffffbn2r
+  rwfgssdfffer
+  r3s4rr3sss4r
+  rrrrrrrrrrrr

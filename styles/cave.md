@@ -46,7 +46,7 @@ The `shadow` effect in `~`, same sizes as the farm: `shadow 12 3` for a characte
 The main grounds are the **cave floor** (`d` with specks of `D` and `T`) and **gravel** (`T` with `t` and `d`). They are dark and low in contrast, so:
 
 - Things on the floor separate by their `K` outline and a lit top or right edge from the top shades of their ramp.
-- **Rock meeting floor** (a raised rock shelf, a wall's foot) is a `terrain` with the rock as raised ground: `bank X` (rock with floor below or left of it), `lip z` (rock with floor above or right of it), `shadow D` (floor just below or left of rock). The style's light places them; write the same symbols as for any terrain.
+- **Rock meeting floor** (a raised rock shelf, a wall's foot) is a `terrain` with the rock as raised ground: `bank x` (rock with floor below or left of it), `lip z` (rock with floor above or right of it), `shadow D` (floor just below or left of rock). The style's light places them; write the same symbols as for any terrain. Keep the bank at `x`: `X` next to the `D` shadow makes a 2 px black band. `assets/cave/cave_floor.tileset` is the worked example.
 
 ## Flipped frames
 

@@ -4,15 +4,14 @@ import org.junit.jupiter.api.Test;
 import pixelgen.model.Grid;
 import pixelgen.model.Tileset;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /** {@code terrain} blocks and {@code blend} lines, in tilesets (and so in sprites). */
-class TerrainParsingTest {
+class TerrainParsingTest extends ParserTest {
 
-    private static final PaletteResolver BASIC = n -> Palettes.load("basic", Path.of("src/test/resources"));
+    private static final PaletteResolver BASIC = only("basic");
 
     private static final String HEAD = "palette basic\nsize 4 4\n"
             + "part raised\ngggg\ngggg\ngggg\ngggg\nend\npart lower\nwwww\nwwww\nwwww\nwwww\nend\n";
@@ -20,12 +19,9 @@ class TerrainParsingTest {
     private static final String TERRAIN = "terrain gw\n  raised raised\n  lower lower\n  bank G\n  lip y\n  shadow k\n"
             + "  n 2 2 2 2\n  w 2 2 2 2\n  n2 2 1 3 2\nend\n";
 
-    private static Tileset parse(String text) throws ParseException {
+    @Override
+    Tileset parse(String text) throws ParseException {
         return TilesetParser.parse(text, "t.tileset", "t", BASIC);
-    }
-
-    private static List<String> errors(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
     }
 
     @Test
@@ -42,7 +38,7 @@ class TerrainParsingTest {
 
     @Test
     void terrainErrors() {
-        List<String> e = errors(HEAD
+        List<String> e = errorsOf(HEAD
                 + "terrain bad\n  raised nope\n  lower lower\n  bank Q\n  bank G\n  n 2 2 2\n  w 2 2 9 2\n  x 1 1 1 1\n"
                 + "  middle\nend\n"
                 + "tile a\n  blend bad n\nend\n");
@@ -59,7 +55,7 @@ class TerrainParsingTest {
 
     @Test
     void blendErrors() {
-        List<String> e = errors(HEAD + TERRAIN
+        List<String> e = errorsOf(HEAD + TERRAIN
                 + "tile a\n  blend gw n|w&e\nend\n"
                 + "tile b\n  blend gw q\nend\n"
                 + "tile c\n  blend nope n\nend\n"
@@ -75,6 +71,14 @@ class TerrainParsingTest {
                         + " touch it up with lines after it",
                 "t.tileset:42: expected 'blend <terrain> <profile>[|<profile>...] or <profile>&<profile>...',"
                         + " like 'blend grass_dirt n|w'"), e);
+    }
+
+    @Test
+    void profilesOfDifferentLengthsWithoutASizeAreReportedNotACrash() {
+        List<String> e = assertThrows(ParseException.class, () -> SpriteParser.parse(
+                "size 0 4\npalette basic\npart a\n  g\nend\nterrain x\n  raised a\n  lower a\n  n 1 1\n  n2 1 1 1\nend\n"
+                        + "frame f\n  g\nend\n", "s.sprite", "s", BASIC)).errors();
+        assertEquals("s.sprite:1: size must be between 1 and 256", e.getFirst());
     }
 
     @Test

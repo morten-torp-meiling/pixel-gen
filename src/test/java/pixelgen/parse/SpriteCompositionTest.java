@@ -4,34 +4,22 @@ import org.junit.jupiter.api.Test;
 import pixelgen.model.Grid;
 import pixelgen.model.Sprite;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Frames built from parts with stamp and recolor, and sprite variants (basic palette: K k w G g y r). */
-class SpriteCompositionTest {
-
-    private static final Path RESOURCES = Path.of("src/test/resources");
-    private static final PaletteResolver BASIC = n -> Palettes.load("basic", RESOURCES);
+class SpriteCompositionTest extends ParserTest {
+    private static final PaletteResolver BASIC = only("basic");
     private static final String HEAD = "size 4 3\npalette basic\npart dot\nK\nend\npart bar\nkkk\nend\npart corner\nG.\nGG\nend\n";
 
-    private static Sprite parse(String text) throws ParseException {
+    @Override
+    Sprite parse(String text) throws ParseException {
         return SpriteParser.parse(text, "t.sprite", "t", BASIC);
     }
 
-    private static Grid frame(String body) throws ParseException {
+    private Grid frame(String body) throws ParseException {
         return parse(HEAD + "frame a\n" + body + "end\n").frame("a").grid();
-    }
-
-    private static List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
-    }
-
-    private static void assertOneError(String text, String part) {
-        List<String> errors = errorsOf(text);
-        assertEquals(1, errors.size(), errors.toString());
-        assertTrue(errors.getFirst().contains(part), errors.getFirst());
     }
 
     // ---- stamps ----

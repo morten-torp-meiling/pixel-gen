@@ -9,16 +9,13 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class TilesetParserTest {
+class TilesetParserTest extends ParserTest {
 
-    private static final PaletteResolver BASIC = n -> Palettes.load("basic", Path.of("src/test/resources"));
+    private static final PaletteResolver BASIC = only("basic");
 
-    private static Tileset parse(String text) throws ParseException {
+    @Override
+    Tileset parse(String text) throws ParseException {
         return TilesetParser.parse(text, "t.tileset", "t", BASIC);
-    }
-
-    private static List<String> errors(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
     }
 
     @Test
@@ -58,7 +55,7 @@ class TilesetParserTest {
 
     @Test
     void sprite_onlyWordsAreRejected() {
-        List<String> e = errors("palette basic\nsize 1 1\nsprite x\nframe a\ng\nend\nanim go fps 2 loop: a\nanchor 0 0\n"
+        List<String> e = errorsOf("palette basic\nsize 1 1\nsprite x\nframe a\ng\nend\nanim go fps 2 loop: a\nanchor 0 0\n"
                 + "tile b\ng\nend\n");
         assertEquals(List.of(
                 "t.tileset:3: a tileset uses 'tileset' where a sprite uses 'sprite'",
@@ -69,7 +66,7 @@ class TilesetParserTest {
 
     @Test
     void tilesetErrorsKeepTheirLineNumbersAndSpeakOfTiles() {
-        List<String> e = errors("palette basic\nsize 2 1\ncolumns 0\ncolumns 2\ntile a wrap sideways\ngg\nend\n"
+        List<String> e = errorsOf("palette basic\nsize 2 1\ncolumns 0\ncolumns 2\ntile a wrap sideways\ngg\nend\n"
                 + "tile b\ng\nend\ntile c from nope\n");
         assertEquals(List.of(
                 "t.tileset:3: expected 'columns <n>' with n from 1 to 256",
@@ -82,14 +79,37 @@ class TilesetParserTest {
     @Test
     void noTiles() {
         assertEquals(List.of("t.tileset: the tileset has no tiles; add 'tile <name>' ... 'end'"),
-                errors("palette basic\n"));
+                errorsOf("palette basic\n"));
     }
 
     @Test
     void translateLeavesQuotedNamesAlone() {
         assertEquals("tile 'frame_a' and 'sprite-x' in tileset 'tile <name>' (tiles: a, b)",
-                TilesetParser.translate("frame 'frame_a' and 'sprite-x' in sprite 'frame <name>' (frames: a, b)"));
+                TilesetParser.translate("frame 'frame_a' and 'sprite-x' in sprite 'frame <name>' (frames: a, b)", "t"));
         assertEquals("a variant can't have the tileset's own name 'ground'",
-                TilesetParser.translate("a variant can't have the sprite's own name 'ground'"));
+                TilesetParser.translate("a variant can't have the sprite's own name 'ground'", "t"));
+    }
+
+    @Test
+    void translateLeavesTheFileAndPathsAlone() {
+        String source = "assets/sprites/frames.tileset";
+        assertEquals(source + ":3: tile 'a' has 1 rows",
+                TilesetParser.translate(source + ":3: frame 'a' has 1 rows", source));
+        assertEquals(source + ": the tileset has no tiles",
+                TilesetParser.translate(source + ": the sprite has no frames", source));
+        assertEquals(source + ":1: palette 'p' not found (C:\\sprites\\p.pal)",
+                TilesetParser.translate(source + ":1: palette 'p' not found (C:\\sprites\\p.pal)", source));
+        // Lines after the first are another file's errors.
+        assertEquals(source + ":2: style 's' has errors:\n  styles/s.style:4: sprite frame",
+                TilesetParser.translate(source + ":2: style 's' has errors:\n  styles/s.style:4: sprite frame", source));
+    }
+
+    @Test
+    void aTilesetInAFolderNamedSpritesKeepsItsPath() {
+        ParseException e = assertThrows(ParseException.class, () -> TilesetParser.parse(
+                "palette basic\nsize 2 2\ntile a\n  gg\n  gg\nend\ntile b\n  g\nend\n", "sprites/frames.tileset", "t",
+                n -> Palettes.load("basic", Path.of("src/test/resources"))));
+        assertEquals(List.of("sprites/frames.tileset:7: tile 'b' has 1 rows; size is 2x2",
+                "sprites/frames.tileset:8: tile 'b' row 0 is 1 wide; size is 2x2"), e.errors());
     }
 }

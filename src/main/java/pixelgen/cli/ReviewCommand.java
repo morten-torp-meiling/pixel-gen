@@ -2,10 +2,8 @@ package pixelgen.cli;
 
 import pixelgen.Cli;
 import pixelgen.model.Sprite;
-import pixelgen.parse.PaletteResolver;
-import pixelgen.parse.ParseException;
+import pixelgen.parse.ProjectFiles;
 import pixelgen.render.AnimSheet;
-import pixelgen.render.Renderer;
 import pixelgen.render.ReviewSheet;
 
 import javax.imageio.ImageIO;
@@ -13,10 +11,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@code review <file|folder ...> [--strip] [--onion] [--scale N] [--out dir]} writes a review
@@ -37,94 +34,36 @@ public final class ReviewCommand implements Cli.Command {
 
     public String summary() { return "Write an enlarged review sheet (or animation strips) to preview/<sprite>/"; }
 
-    public int run(List<String> args, PrintStream out, PrintStream err) throws IOException {
-        List<String> targets = new ArrayList<>();
-        Integer scale = null;
-        boolean strip = false, onion = false;
-        Path outDir = projectDir.resolve("preview");
-        for (int i = 0; i < args.size(); i++) {
-            String a = args.get(i);
-            if (!a.startsWith("--")) {
-                targets.add(a);
-                continue;
-            }
-            if (a.equals("--strip")) {
-                strip = true;
-                continue;
-            }
-            if (a.equals("--onion")) {
-                onion = true;
-                continue;
-            }
-            if (i + 1 >= args.size()) return usageError(err, a + " needs a value");
-            String v = args.get(++i);
-            switch (a) {
-                case "--scale" -> {
-                    try {
-                        scale = Integer.parseInt(v);
-                    } catch (NumberFormatException e) {
-                        return usageError(err, "--scale needs a whole number, not '" + v + "'");
-                    }
-                    if (scale < 1 || scale > Renderer.MAX_SCALE) {
-                        return usageError(err, "--scale must be between 1 and " + Renderer.MAX_SCALE);
-                    }
-                }
-                case "--out" -> outDir = projectDir.resolve(v);
-                default -> { return usageError(err, "unknown option " + a); }
-            }
-        }
-        if (targets.isEmpty()) return usageError(err, "expected: " + usage());
+    public int run(List<String> args, PrintStream out, PrintStream err) throws Exception {
+        Options o = Options.parse(args, Set.of("--strip", "--onion"), Set.of("--scale", "--out"));
+        List<String> targets = o.targets(usage());
+        boolean strip = o.has("--strip"), onion = o.has("--onion");
+        int scale = o.scale(0);  // 0: automatic
+        Path outDir = o.out(projectDir, "preview");
 
-        List<Path> files;
-        try {
-            files = SpriteFiles.collect(projectDir, targets);
-        } catch (NoSuchFileException e) {
-            err.println("not found: " + e.getFile());
-            return 1;
-        }
-        if (files.isEmpty()) {
-            err.println(SpriteFiles.noneFound(SpriteFiles.ALL, targets));
-            return 1;
-        }
-
-        PaletteResolver palettes = PaletteResolver.cached(projectDir);
-        int failed = 0;
-        for (Path f : files) {
-            String shown = SpriteFiles.display(projectDir, f);
-            Sprite s;
-            try {
-                s = SpriteFiles.load(f, shown, palettes);
-            } catch (ParseException e) {
-                failed++;
-                out.println("FAIL " + shown);
-                for (String error : e.errors()) SpriteFiles.printError(out, error);
-                continue;
-            }
+        SpriteFiles.Names names = new SpriteFiles.Names();
+        return SpriteFiles.forEach(projectDir, targets, SpriteFiles.ALL, SpriteFiles::load, out, err, (s, shown) -> {
             if ((strip || onion) && s.anims().isEmpty()) {
                 out.println("skip " + shown + ": no anims to lay out as strips");
-                continue;
+                return true;
             }
             for (Sprite sp : s.withVariants()) {  // each variant gets its own sheet
+                names.check(sp.name(), shown, out);
                 Path dir = outDir.resolve(sp.name());
                 Files.createDirectories(dir);
-                int sc = scale == null ? ReviewSheet.autoScale(sp) : scale;
+                int sc = scale == 0 ? ReviewSheet.autoScale(sp) : scale;
                 if (!strip && !onion) write(ReviewSheet.render(sp, sc).image(), dir.resolve("review.png"), sc, out);
                 if (strip) write(AnimSheet.render(sp, sc, false).image(), dir.resolve("strip.png"), sc, out);
                 if (onion) write(AnimSheet.render(sp, sc, true).image(), dir.resolve("onion.png"), sc, out);
             }
-            for (String w : s.warnings()) out.println("     warning: " + w);
-        }
-        return failed == 0 ? 0 : 1;
+            SpriteFiles.printWarnings(out, s.warnings());
+            return true;
+        }).exitCode();
     }
 
     private void write(BufferedImage img, Path png, int scale, PrintStream out) throws IOException {
         ImageIO.write(img, "png", png.toFile());
-        out.println("wrote " + SpriteFiles.display(projectDir, png) + " (scale " + scale + "x, "
+        out.println("wrote " + ProjectFiles.display(projectDir, png) + " (scale " + scale + "x, "
                 + img.getWidth() + "x" + img.getHeight() + ")");
-    }
-
-    private static int usageError(PrintStream err, String message) {
-        err.println(message);
-        return 2;
     }
 }

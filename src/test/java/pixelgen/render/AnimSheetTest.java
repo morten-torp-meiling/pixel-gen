@@ -63,6 +63,6 @@ class AnimSheetTest {
     void spritesWithoutAnimsAreRejected() throws Exception {
         Sprite s = SpriteParser.parse("size 1 1\npalette basic\nframe a\nK\nend\n", "t.sprite", "t",
                 n -> Palettes.load("basic", Path.of("src/test/resources")));
-        assertThrows(IllegalArgumentException.class, () -> AnimSheet.render(s, false));
+        assertThrows(IllegalArgumentException.class, () -> AnimSheet.render(s, 10, false));
     }
 }

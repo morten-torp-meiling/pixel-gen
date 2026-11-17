@@ -30,7 +30,7 @@ class EffectsTest {
 
     @Test
     void outerOutlineGoesOnFourSidesButNotDiagonally() {
-        Effects.Result r = Effects.outline(BUMP, fx, 'K', OUTER);
+        Effects.Result r = Effects.outline(BUMP, fx, 'K', OUTER, Light.TOP_LEFT);
         assertEquals(Grid.of(
                 "..K..",
                 ".KgK.",
@@ -46,7 +46,7 @@ class EffectsTest {
                 "..G..",
                 ".GgG.",
                 "GgggK",
-                ".KKK."), Effects.outline(BUMP, fx, 'K', SELECTIVE).grid());
+                ".KKK."), Effects.outline(BUMP, fx, 'K', SELECTIVE, Light.TOP_LEFT).grid());
     }
 
     @Test
@@ -70,15 +70,13 @@ class EffectsTest {
                 ".ggrgg..",
                 "..gwg...",
                 "........");
-        Grid outer = Effects.outline(shape, fx, 'K', OUTER).grid();
-        assertEquals(Effects.outline(shape, fx, 'K', SELECTIVE).grid(),
-                Effects.outline(shape, fx, 'K', SELECTIVE, Light.TOP_LEFT).grid());
+        Grid outer = Effects.outline(shape, fx, 'K', OUTER, Light.TOP_LEFT).grid();
         for (Light light : Light.values()) {
             boolean flipX = light.lx() > 0, flipY = light.ly() > 0;
             Grid mirrored = shape;
             if (flipX) mirrored = mirrored.flipX();
             if (flipY) mirrored = mirrored.flipY();
-            Grid expected = Effects.outline(mirrored, fx, 'K', SELECTIVE).grid();
+            Grid expected = Effects.outline(mirrored, fx, 'K', SELECTIVE, Light.TOP_LEFT).grid();
             if (flipX) expected = expected.flipX();
             if (flipY) expected = expected.flipY();
             assertEquals(expected, Effects.outline(shape, fx, 'K', SELECTIVE, light).grid(), light.word());
@@ -89,20 +87,23 @@ class EffectsTest {
     @Test
     void selectiveFallsBackToTheOutlineColourWhenThereIsNoDarkerShade() {
         // G is already the darkest green; r is in an unordered ramp.
-        assertEquals(Grid.of(".K.", "KGK", ".K."), Effects.outline(Grid.of("...", ".G.", "..."), fx, 'K', SELECTIVE).grid());
-        assertEquals(Grid.of(".K.", "KrK", ".K."), Effects.outline(Grid.of("...", ".r.", "..."), fx, 'K', SELECTIVE).grid());
+        assertEquals(Grid.of(".K.", "KGK", ".K."),
+                Effects.outline(Grid.of("...", ".G.", "..."), fx, 'K', SELECTIVE, Light.TOP_LEFT).grid());
+        assertEquals(Grid.of(".K.", "KrK", ".K."),
+                Effects.outline(Grid.of("...", ".r.", "..."), fx, 'K', SELECTIVE, Light.TOP_LEFT).grid());
     }
 
     @Test
     void outlineNeverCoversArtButReplacesTranslucentPixels() {
         // The shadow '~' isn't outlined itself, but outline pixels may land on it.
-        assertEquals(Grid.of("~K~", "KgK", ".K."), Effects.outline(Grid.of("~~~", "~g~", "..."), fx, 'K', OUTER).grid());
-        assertEquals(Grid.of("KK", "KK"), Effects.outline(Grid.of("KK", "KK"), fx, 'k', OUTER).grid());
+        assertEquals(Grid.of("~K~", "KgK", ".K."),
+                Effects.outline(Grid.of("~~~", "~g~", "..."), fx, 'K', OUTER, Light.TOP_LEFT).grid());
+        assertEquals(Grid.of("KK", "KK"), Effects.outline(Grid.of("KK", "KK"), fx, 'k', OUTER, Light.TOP_LEFT).grid());
     }
 
     @Test
     void artTouchingTheEdgeIsReportedAsClipped() {
-        Effects.Result r = Effects.outline(Grid.of("g..", "..."), fx, 'K', OUTER);
+        Effects.Result r = Effects.outline(Grid.of("g..", "..."), fx, 'K', OUTER, Light.TOP_LEFT);
         assertEquals(Grid.of("gK.", "K.."), r.grid());
         assertTrue(r.clipped());
     }

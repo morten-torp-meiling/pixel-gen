@@ -20,6 +20,11 @@ public record Anim(String name, double fps, boolean loop, List<Step> steps) {
         steps = List.copyOf(steps);
     }
 
+    /** An fps or duration for messages: 8 or 2.5, whole numbers without ".0". */
+    public static String number(double d) {
+        return d == Math.rint(d) ? String.valueOf((long) d) : String.valueOf(d);
+    }
+
     /** How long one pass takes, in seconds. */
     public double seconds() {
         return steps.stream().mapToDouble(Step::duration).sum() / fps;

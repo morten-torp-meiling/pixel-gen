@@ -36,6 +36,8 @@ public final class ReviewSheet {
     public static final int TITLE_H = 30;
     public static final int SECTION_H = 22;
     public static final int MAX_WIDTH = 1800;
+    /** Largest side of any review image (review, strips, tile check, mock-up). */
+    public static final int MAX_SIDE = 16384;
 
     public static final Color BACKGROUND = new Color(0x3a3a3a);
     public static final Color CHECK_LIGHT = new Color(0xe6e6e6);
@@ -58,8 +60,6 @@ public final class ReviewSheet {
     public static int autoScale(Sprite s) {
         return Math.max(4, Math.min(24, 256 / Math.max(s.width(), s.height())));
     }
-
-    public static Result render(Sprite sprite) { return render(sprite, autoScale(sprite)); }
 
     public static Result render(Sprite sprite, int scale) {
         if (scale < 1 || scale > Renderer.MAX_SCALE) {
@@ -84,7 +84,7 @@ public final class ReviewSheet {
         width = Math.max(width, 640);  // room for the title line
         int height = actualTop + actualH + PAD;
 
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = newImage(width, height);
         Graphics2D g = img.createGraphics();
         Map<String, Rectangle> frameAreas = new LinkedHashMap<>();
         Map<String, Rectangle> partAreas = new LinkedHashMap<>();
@@ -122,6 +122,15 @@ public final class ReviewSheet {
             g.dispose();
         }
         return new Result(img, scale, frameAreas, partAreas);
+    }
+
+    /** A blank review image; throws IllegalArgumentException when a side is over {@link #MAX_SIDE}. */
+    static BufferedImage newImage(int width, int height) {
+        if (width > MAX_SIDE || height > MAX_SIDE) {
+            throw new IllegalArgumentException("the image would be " + width + "x" + height + "; the limit is "
+                    + MAX_SIDE + " per side, so use a smaller --scale");
+        }
+        return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
     }
 
     // ---- layout ----

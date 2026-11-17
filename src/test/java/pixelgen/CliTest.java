@@ -27,7 +27,7 @@ class CliTest {
     @Test
     void noArgumentsPrintsHelp() {
         assertEquals(0, run());
-        assertTrue(out().contains("Usage: gradlew run"), out());
+        assertTrue(out().contains("Usage: pixel-gen <command>"), out());
         assertTrue(out().contains("version"), out());
     }
 

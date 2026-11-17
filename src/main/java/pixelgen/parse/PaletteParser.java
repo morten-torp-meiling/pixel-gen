@@ -35,9 +35,8 @@ public final class PaletteParser {
     private PaletteParser() {}
 
     public static Palette parseFile(Path file) throws IOException, ParseException {
-        String fileName = file.getFileName().toString();
-        String defaultName = fileName.endsWith(".pal") ? fileName.substring(0, fileName.length() - 4) : fileName;
-        return parse(Files.readString(file, StandardCharsets.UTF_8), file.toString(), defaultName);
+        return parse(Files.readString(file, StandardCharsets.UTF_8), file.toString(),
+                ProjectFiles.baseName(file, ".pal"));
     }
 
     public static Palette parse(String text, String source, String defaultName) throws ParseException {
@@ -137,7 +136,7 @@ public final class PaletteParser {
                         warnings.add(where + "'" + symbol + "' has the same colour " + Colors.toHex(rgb, alpha)
                                 + " as " + owner);
                     }
-                    if (alpha < 255 && rampOrdered && rampName != null && !rampName.equals("?")) {
+                    if (alpha < 255 && rampOrdered) {
                         warnings.add(where + "'" + symbol + "' is translucent; put it in an unordered ramp, "
                                 + "since lightness steps don't apply to see-through colours");
                     }

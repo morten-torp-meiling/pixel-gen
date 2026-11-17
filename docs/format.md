@@ -284,11 +284,14 @@ Where two grounds meet (grass and dirt), one `terrain` block describes the meeti
 
 ```
 terrain grass_dirt
-  raised grass_tex       # the higher ground's texture: a part the size of a tile
-  lower dirt_tex         # the lower ground's texture: a part the size of a tile
-  bank G                 # optional: raised ground with lower ground below or right of it
-  lip L                  # optional: raised ground with lower ground above or left of it
-  shadow D               # optional: lower ground just below or right of raised ground
+  # The higher ground's texture and the lower ground's: parts the size of a tile.
+  raised grass_tex
+  lower dirt_tex
+  # Optional: raised ground with lower ground below or right of it (bank), above or left
+  # of it (lip), and lower ground just below or right of raised ground (shadow).
+  bank G
+  lip L
+  shadow D
   n  5 5 6 6 6 5 5 4 4 5 6 6 5 5 5 5
   n2 5 5 4 4 5 6 6 6 5 5 4 4 5 6 6 5
   w  5 5 6 6 5 5 4 4 5 6 6 6 5 5 5 5

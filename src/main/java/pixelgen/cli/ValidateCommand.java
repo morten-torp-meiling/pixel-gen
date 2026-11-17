@@ -3,17 +3,15 @@ package pixelgen.cli;
 import pixelgen.Cli;
 import pixelgen.model.Sprite;
 import pixelgen.model.Tileset;
-import pixelgen.parse.PaletteResolver;
-import pixelgen.parse.ParseException;
+import pixelgen.parse.SpriteParser;
 import pixelgen.parse.TilesetParser;
 
-import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -31,59 +29,40 @@ public final class ValidateCommand implements Cli.Command {
 
     public String summary() { return "Check .sprite and .tileset files (default: everything under assets/)"; }
 
-    public int run(List<String> args, PrintStream out, PrintStream err) throws IOException {
-        List<String> targets = args.isEmpty() ? List.of("assets") : args;
-        List<Path> files;
-        try {
-            files = SpriteFiles.collect(projectDir, targets);
-        } catch (NoSuchFileException e) {
-            err.println("not found: " + e.getFile());
-            return 1;
-        }
-        if (files.isEmpty()) {
-            err.println(SpriteFiles.noneFound(SpriteFiles.ALL, targets));
-            return 1;
-        }
-
-        PaletteResolver palettes = PaletteResolver.cached(projectDir);
-        int failed = 0;
-        for (Path f : files) {
-            String shown = SpriteFiles.display(projectDir, f);
-            try {
-                Sprite s;
-                String variants;
-                if (f.toString().endsWith(".tileset")) {
-                    Tileset t = TilesetParser.parseFile(f, shown, palettes);
-                    s = t.sprite();
-                    variants = variants(s);
-                    // Tiles that don't repeat both ways, grouped by how they do repeat.
-                    Map<Tileset.Wrap, List<String>> oneWay = new TreeMap<>();
-                    for (String tile : t.tiles()) {
-                        if (t.wrap(tile) != Tileset.Wrap.BOTH) {
-                            oneWay.computeIfAbsent(t.wrap(tile), k -> new ArrayList<>()).add(tile);
-                        }
+    public int run(List<String> args, PrintStream out, PrintStream err) throws Exception {
+        List<String> words = Options.parse(args, Set.of(), Set.of()).words();
+        List<String> targets = words.isEmpty() ? List.of("assets") : words;
+        SpriteFiles.Tally tally = SpriteFiles.forEach(projectDir, targets, SpriteFiles.ALL,
+                (f, shown, palettes) -> f.toString().endsWith(".tileset")
+                        ? TilesetParser.parseFile(f, shown, palettes) : SpriteParser.parseFile(f, shown, palettes),
+                out, err, (loaded, shown) -> {
+                    Sprite s = loaded instanceof Tileset t ? t.sprite() : (Sprite) loaded;
+                    if (loaded instanceof Tileset t) {
+                        out.printf("ok   %s (%d tiles of %dx%d, %d parts, %d columns, %spalette %s%s%s)%n", shown,
+                                s.frames().size(), s.width(), s.height(), s.parts().size(), t.columns(), style(s),
+                                s.palette().name(), oneWayTiles(t), variants(s));
+                    } else {
+                        out.printf("ok   %s (%dx%d, %d frames, %d parts, %spalette %s%s%s)%n", shown, s.width(),
+                                s.height(), s.frames().size(), s.parts().size(), style(s), s.palette().name(),
+                                s.anims().isEmpty() ? "" : ", anims " + String.join(" ", s.anims().keySet()),
+                                variants(s));
                     }
-                    StringBuilder wraps = new StringBuilder();
-                    oneWay.forEach((w, tiles) -> wraps.append(", wrap ").append(w.word()).append(": ")
-                            .append(String.join(" ", tiles)));
-                    out.printf("ok   %s (%d tiles of %dx%d, %d parts, %d columns, %spalette %s%s%s)%n", shown,
-                            s.frames().size(), s.width(), s.height(), s.parts().size(), t.columns(), style(s),
-                            s.palette().name(), wraps, variants);
-                } else {
-                    s = SpriteFiles.load(f, shown, palettes);
-                    out.printf("ok   %s (%dx%d, %d frames, %d parts, %spalette %s%s%s)%n", shown, s.width(), s.height(),
-                            s.frames().size(), s.parts().size(), style(s), s.palette().name(),
-                            s.anims().isEmpty() ? "" : ", anims " + String.join(" ", s.anims().keySet()), variants(s));
-                }
-                for (String w : s.warnings()) out.println("     warning: " + w);
-            } catch (ParseException e) {
-                failed++;
-                out.println("FAIL " + shown);
-                for (String error : e.errors()) SpriteFiles.printError(out, error);
-            }
+                    SpriteFiles.printWarnings(out, s.warnings());
+                    return true;
+                });
+        if (tally.files() > 0) out.printf("%d file(s) checked, %d with errors%n", tally.files(), tally.failed());
+        return tally.exitCode();
+    }
+
+    /** ", wrap x: a b": the tiles that don't repeat both ways, grouped by how they do repeat. */
+    private static String oneWayTiles(Tileset t) {
+        Map<Tileset.Wrap, List<String>> oneWay = new TreeMap<>();
+        for (String tile : t.tiles()) {
+            if (t.wrap(tile) != Tileset.Wrap.BOTH) oneWay.computeIfAbsent(t.wrap(tile), k -> new ArrayList<>()).add(tile);
         }
-        out.printf("%d file(s) checked, %d with errors%n", files.size(), failed);
-        return failed == 0 ? 0 : 1;
+        StringBuilder wraps = new StringBuilder();
+        oneWay.forEach((w, tiles) -> wraps.append(", wrap ").append(w.word()).append(": ").append(String.join(" ", tiles)));
+        return wraps.toString();
     }
 
     /** "style cave, ", or nothing for the built-in style. */

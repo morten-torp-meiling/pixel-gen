@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Parses {@code .style} files.
@@ -35,7 +34,6 @@ public final class StyleParser {
 
     public static final String EXTENSION = ".style";
 
-    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_-]+");
     private static final List<String> KEYS = List.of("style", "palette", "light", "outline", "shadow", "tile", "guide");
     private static final String KNOWN = String.join(", ", KEYS);
 
@@ -46,10 +44,7 @@ public final class StyleParser {
      */
     public static Style parseFile(Path file, String displayName, PaletteResolver palettes)
             throws IOException, ParseException {
-        String fileName = file.getFileName().toString();
-        String defaultName = fileName.endsWith(EXTENSION)
-                ? fileName.substring(0, fileName.length() - EXTENSION.length())
-                : fileName;
+        String defaultName = ProjectFiles.baseName(file, EXTENSION);
         return parse(Files.readString(file, StandardCharsets.UTF_8), displayName, defaultName,
                 file.toAbsolutePath().getParent(), palettes);
     }
@@ -89,7 +84,7 @@ public final class StyleParser {
             }
             switch (key) {
                 case "style" -> {
-                    if (tokens.length != 2 || !NAME.matcher(tokens[1]).matches()) {
+                    if (tokens.length != 2 || !SpriteParser.isName(tokens[1])) {
                         errors.add(where + "expected 'style <name>' (letters, digits, _ and -)");
                     } else {
                         name = tokens[1];
@@ -109,29 +104,22 @@ public final class StyleParser {
                     else light = l;
                 }
                 case "outline" -> {
-                    if (tokens.length < 2 || tokens.length > 3 || !isSymbol(tokens[1])) {
+                    if (tokens.length < 2 || tokens.length > 3 || !SpriteParser.isSymbol(tokens[1])) {
                         errors.add(where + "expected 'outline <colour> [outer|selective]', like 'outline K selective'");
                         continue;
                     }
-                    if (tokens.length == 3) {
-                        switch (tokens[2]) {
-                            case "outer" -> outlineMode = Effects.OutlineMode.OUTER;
-                            case "selective" -> outlineMode = Effects.OutlineMode.SELECTIVE;
-                            default -> {
-                                errors.add(where + "unknown outline mode '" + tokens[2]
-                                        + "'; expected outer or selective");
-                                continue;
-                            }
-                        }
-                    }
+                    Effects.OutlineMode mode = tokens.length == 3
+                            ? SpriteParser.outlineMode(tokens[2], where, errors) : Effects.OutlineMode.OUTER;
+                    if (mode == null) continue;
+                    outlineMode = mode;
                     outline = tokens[1].charAt(0);
                     outlineLine = lineNo;
                 }
                 case "shadow" -> {
-                    if (tokens.length == 4 && isSymbol(tokens[1])) {
+                    if (tokens.length == 4 && SpriteParser.isSymbol(tokens[1])) {
                         errors.add(where + "a style sets only the shadow's colour ('shadow " + tokens[1]
                                 + "'); each sprite gives its size with 'shadow <width> <height>'");
-                    } else if (tokens.length != 2 || !isSymbol(tokens[1])) {
+                    } else if (tokens.length != 2 || !SpriteParser.isSymbol(tokens[1])) {
                         errors.add(where + "expected 'shadow <colour>', like 'shadow ~'");
                     } else {
                         shadow = tokens[1].charAt(0);
@@ -139,10 +127,9 @@ public final class StyleParser {
                     }
                 }
                 case "tile" -> {
-                    int[] wh = tokens.length == 3 ? ints(tokens[1], tokens[2]) : null;
-                    if (wh == null) {
-                        errors.add(where + "expected 'tile <width> <height>', like 'tile 16 16'");
-                    } else if (wh[0] < 1 || wh[1] < 1 || wh[0] > SpriteParser.MAX_SIZE || wh[1] > SpriteParser.MAX_SIZE) {
+                    int[] wh = SpriteParser.ints(tokens, 1, 2, where, "tile <width> <height>", errors);
+                    if (wh == null) continue;
+                    if (wh[0] < 1 || wh[1] < 1 || wh[0] > SpriteParser.MAX_SIZE || wh[1] > SpriteParser.MAX_SIZE) {
                         errors.add(where + "tile size must be between 1 and " + SpriteParser.MAX_SIZE);
                     } else {
                         tileWidth = wh[0];
@@ -187,18 +174,5 @@ public final class StyleParser {
         if (!errors.isEmpty()) throw new ParseException(SpriteParser.sortByLine(errors, source));
         return new Style(name, palette, light, outline, outlineMode, shadow, tileWidth, tileHeight, guidePath,
                 SpriteParser.sortByLine(warnings, source));
-    }
-
-    /** A single non-transparent character; whether the palette has it is checked afterwards. */
-    private static boolean isSymbol(String token) {
-        return token.length() == 1 && token.charAt(0) != Palette.TRANSPARENT;
-    }
-
-    private static int[] ints(String a, String b) {
-        try {
-            return new int[] {Integer.parseInt(a), Integer.parseInt(b)};
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }

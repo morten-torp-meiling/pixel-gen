@@ -7,6 +7,7 @@ import pixelgen.model.Style;
 import pixelgen.model.Tileset;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
+import pixelgen.parse.ProjectFiles;
 import pixelgen.parse.SpriteParser;
 import pixelgen.parse.TilesetParser;
 import pixelgen.render.SheetPacker;
@@ -72,10 +73,10 @@ public final class Exporter {
         Sprite sprite;
         Tileset tileset = null;
         if (name.endsWith(".tileset")) {
-            tileset = TilesetParser.parse(text, path, name.substring(0, name.length() - ".tileset".length()), palettes);
+            tileset = TilesetParser.parse(text, path, ProjectFiles.baseName(file, ".tileset"), palettes);
             sprite = tileset.sprite();
         } else {
-            sprite = SpriteParser.parse(text, path, name.substring(0, name.length() - ".sprite".length()), palettes);
+            sprite = SpriteParser.parse(text, path, ProjectFiles.baseName(file, ".sprite"), palettes);
         }
         StringBuilder key = new StringBuilder();
         key.append("format ").append(FORMAT).append('\n')
@@ -90,7 +91,11 @@ public final class Exporter {
                 .append(" tile ").append(st.tileWidth()).append('x').append(st.tileHeight()).append('\n');
         Palette p = sprite.palette();
         key.append("palette ").append(p.name()).append('\n');
-        for (Palette.Entry e : p.entries()) key.append(e.symbol()).append(' ').append(e.hex()).append('\n');
+        // The ramps too: selective outlines take the darkest shade of an ordered ramp.
+        for (Palette.Ramp r : p.ramps()) {
+            key.append("ramp ").append(r.name()).append(r.ordered() ? "" : " unordered").append('\n');
+            for (Palette.Entry e : r.entries()) key.append(e.symbol()).append(' ').append(e.hex()).append('\n');
+        }
         key.append(text);
         return new Source(path, folder, sprite, tileset, sha256(key.toString()));
     }

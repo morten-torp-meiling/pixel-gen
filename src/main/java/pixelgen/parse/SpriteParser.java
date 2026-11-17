@@ -106,6 +106,11 @@ public final class SpriteParser {
 
     private SpriteParser() {}
 
+    /** True for a valid sprite, part, frame, anim or variant name: letters, digits, _ and -. */
+    public static boolean isName(String text) {
+        return NAME.matcher(text).matches();
+    }
+
     private record Row(int line, String text) {}
 
     /** A step that changes the frame image, in the order written. */
@@ -137,7 +142,7 @@ public final class SpriteParser {
 
     /**
      * A {@code symbol} of 0 and a null {@code mode} come from the style (a bare {@code outline}
-     * line); {@code light} is the style's, filled in with them (null until then: the top left).
+     * line); {@code light} is the style's, filled in with them (null until then).
      */
     private record Outline(int line, char symbol, Effects.OutlineMode mode, Light light) implements Op {}
 
@@ -181,10 +186,7 @@ public final class SpriteParser {
 
     public static Sprite parseFile(Path file, String displayName, PaletteResolver palettes)
             throws IOException, ParseException {
-        String fileName = file.getFileName().toString();
-        String defaultName = fileName.endsWith(".sprite")
-                ? fileName.substring(0, fileName.length() - ".sprite".length())
-                : fileName;
+        String defaultName = ProjectFiles.baseName(file, ".sprite");
         return parse(Files.readString(file, StandardCharsets.UTF_8), displayName, defaultName, palettes);
     }
 
@@ -793,26 +795,22 @@ public final class SpriteParser {
     private static Outline parseOutline(String[] tokens, int lineNo, String where, List<String> errors) {
         String form = "outline <colour> [outer|selective]";
         if (tokens.length == 1) return new Outline(lineNo, (char) 0, null, null);
-        if (tokens.length == 2 && (tokens[1].equals("outer") || tokens[1].equals("selective"))) {
-            return new Outline(lineNo, (char) 0, tokens[1].equals("outer")
-                    ? Effects.OutlineMode.OUTER : Effects.OutlineMode.SELECTIVE, null);
+        if (tokens.length == 2 && Effects.OutlineMode.parse(tokens[1]) != null) {
+            return new Outline(lineNo, (char) 0, Effects.OutlineMode.parse(tokens[1]), null);
         }
         if (tokens.length > 3 || !isSymbol(tokens[1])) {
             errors.add(where + "expected '" + form + "', like 'outline K' (or a bare 'outline' in the style's colour)");
             return null;
         }
-        Effects.OutlineMode mode = Effects.OutlineMode.OUTER;
-        if (tokens.length == 3) {
-            switch (tokens[2]) {
-                case "outer" -> mode = Effects.OutlineMode.OUTER;
-                case "selective" -> mode = Effects.OutlineMode.SELECTIVE;
-                default -> {
-                    errors.add(where + "unknown outline mode '" + tokens[2] + "'; expected outer or selective");
-                    return null;
-                }
-            }
-        }
-        return new Outline(lineNo, tokens[1].charAt(0), mode, null);
+        Effects.OutlineMode mode = tokens.length == 3 ? outlineMode(tokens[2], where, errors) : Effects.OutlineMode.OUTER;
+        return mode == null ? null : new Outline(lineNo, tokens[1].charAt(0), mode, null);
+    }
+
+    /** {@code outer} or {@code selective}, or records an error and returns null. */
+    static Effects.OutlineMode outlineMode(String word, String where, List<String> errors) {
+        Effects.OutlineMode mode = Effects.OutlineMode.parse(word);
+        if (mode == null) errors.add(where + "unknown outline mode '" + word + "'; expected outer or selective");
+        return mode;
     }
 
     /** {@code shadow <colour> <width> <height>}, or {@code shadow <width> <height>} in the style's colour. */
@@ -824,33 +822,24 @@ public final class SpriteParser {
                     + " in the style's colour)");
             return null;
         }
-        if (bare) {
-            int w = Integer.parseInt(tokens[1]), h = Integer.parseInt(tokens[2]);
-            if (w < 1 || h < 1 || w > MAX_SIZE || h > MAX_SIZE) {
-                errors.add(where + "shadow size must be between 1 and " + MAX_SIZE);
-                return null;
-            }
-            return new Shadow(lineNo, (char) 0, w, h);
-        }
-        int[] wh = ints(tokens, 2, 2, where, form, errors);
+        int[] wh = ints(tokens, bare ? 1 : 2, 2, where, form, errors);
         if (wh == null) return null;
         if (wh[0] < 1 || wh[1] < 1 || wh[0] > MAX_SIZE || wh[1] > MAX_SIZE) {
             errors.add(where + "shadow size must be between 1 and " + MAX_SIZE);
             return null;
         }
-        return new Shadow(lineNo, tokens[1].charAt(0), wh[0], wh[1]);
+        return new Shadow(lineNo, bare ? (char) 0 : tokens[1].charAt(0), wh[0], wh[1]);
     }
 
     /** A single non-transparent character; whether the palette has it is checked later. */
-    private static boolean isSymbol(String token) {
+    static boolean isSymbol(String token) {
         return token.length() == 1 && token.charAt(0) != Palette.TRANSPARENT;
     }
 
     /** Draws an outline or shadow; its colour has already been checked. */
     private static Effects.Result applyEffect(Op op, Grid grid, Palette palette, int anchorX, int anchorY) {
         return switch (op) {
-            case Outline o -> Effects.outline(grid, palette, o.symbol(), o.mode(),
-                    o.light() != null ? o.light() : Light.TOP_LEFT);
+            case Outline o -> Effects.outline(grid, palette, o.symbol(), o.mode(), o.light());
             case Shadow s -> Effects.shadow(grid, s.symbol(), s.width(), s.height(), anchorX, anchorY);
             default -> throw new IllegalArgumentException("not an effect: " + op);
         };
@@ -1162,7 +1151,8 @@ public final class SpriteParser {
                         + "; a tile using it won't fit next to a copy of itself");
             }
             String other = firstOfSide.putIfAbsent(side, name);
-            if (other != null && (profiles.get(other)[0] != d[0] || profiles.get(other)[d.length - 1] != d[d.length - 1])) {
+            int[] o = other == null ? null : profiles.get(other);  // may differ in length when the size is unknown
+            if (o != null && (o[0] != d[0] || o[o.length - 1] != d[d.length - 1])) {
                 warnings.add(w + "ends at different depths from '" + other + "', so their tiles won't meet");
             }
             profiles.put(name, d);
@@ -1247,7 +1237,7 @@ public final class SpriteParser {
     }
 
     /** Parses {@code count} integers starting at {@code tokens[start]}, or records an error and returns null. */
-    private static int[] ints(String[] tokens, int start, int count, String where, String form, List<String> errors) {
+    static int[] ints(String[] tokens, int start, int count, String where, String form, List<String> errors) {
         if (start == 1 && tokens.length != count + 1) {
             errors.add(where + "expected '" + form + "'");
             return null;

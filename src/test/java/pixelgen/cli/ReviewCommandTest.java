@@ -2,41 +2,23 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ReviewCommandTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class ReviewCommandTest extends CommandTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        Files.createDirectories(project.resolve("assets"));
-        Files.copy(Path.of("src/test/resources/sprites/apple.sprite"), project.resolve("assets/apple.sprite"));
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        copy("sprites/apple.sprite", "assets/apple.sprite");
     }
 
-    private int run(String... args) throws Exception {
-        return new ReviewCommand(project).run(List.of(args),
-                new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new ReviewCommand(project); }
 
     @Test
     void writesReviewSheetWithAutomaticScale() throws Exception {
@@ -54,10 +36,19 @@ class ReviewCommandTest {
 
     @Test
     void invalidSpriteFails() throws Exception {
-        Files.writeString(project.resolve("assets/bad.sprite"), "size 1 1\npalette basic\nframe a\nQ\nend\n");
+        write("assets/bad.sprite", "size 1 1\npalette basic\nframe a\nQ\nend\n");
         assertEquals(1, run("assets"));
         assertTrue(out().contains("FAIL assets/bad.sprite"), out());
         assertTrue(Files.exists(project.resolve("preview/apple/review.png")), "valid sprites are still reviewed");
+    }
+
+    @Test
+    void aSheetTooLargeFailsThatFileOnly() throws Exception {
+        write("assets/huge.sprite", "size 256 256\npalette basic\nframe a\n  stamp dot 0 0\nend\n"
+                + "part dot\n  K\nend\n");
+        assertEquals(1, run("assets", "--scale", "64"));
+        assertTrue(out().contains("FAIL assets/huge.sprite: the image would be "), out());
+        assertTrue(out().contains("wrote preview/apple/review.png"), out());
     }
 
     @Test
@@ -69,7 +60,7 @@ class ReviewCommandTest {
 
     @Test
     void stripAndOnionWriteTheirOwnSheetsAndSkipSpritesWithoutAnims() throws Exception {
-        Files.writeString(project.resolve("assets/blink.sprite"),
+        write("assets/blink.sprite",
                 "size 1 1\npalette basic\nframe on\nK\nend\nframe off\nw\nend\nanim blink fps 2 loop: on off\n");
         assertEquals(0, run("assets", "--strip", "--onion"));
         assertTrue(out().contains("wrote preview/blink/strip.png"), out());

@@ -2,7 +2,6 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import pixelgen.model.Sprite;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.SpriteParser;
@@ -10,29 +9,19 @@ import pixelgen.render.Renderer;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ImportCommandTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class ImportCommandTest extends CommandTest {
     private Sprite apple;
 
     @BeforeEach
     void setUp() throws Exception {
-        Path res = Path.of("src/test/resources");
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(res.resolve("palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        apple = SpriteParser.parseFile(res.resolve("sprites/apple.sprite"), "apple.sprite", PaletteResolver.cached(res));
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        apple = SpriteParser.parseFile(RESOURCES.resolve("sprites/apple.sprite"), "apple.sprite",
+                PaletteResolver.cached(RESOURCES));
         BufferedImage big = Renderer.render(apple.frame("idle").grid(), apple.palette(), 4);
         big.setRGB(0, 0, 0xFFC12121);  // one off-palette pixel, so the 4x4 blocks are no longer solid
         ImageIO.write(Renderer.render(apple.frame("idle").grid(), apple.palette(), 4), "png",
@@ -40,14 +29,8 @@ class ImportCommandTest {
         ImageIO.write(big, "png", project.resolve("noisy.png").toFile());
     }
 
-    private int run(String... args) throws Exception {
-        return new ImportCommand(project).run(List.of(args),
-                new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
-    private String err() { return errBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new ImportCommand(project); }
 
     @Test
     void printsSpriteTextToStdoutAndReportToStderr() throws Exception {
@@ -94,9 +77,18 @@ class ImportCommandTest {
         assertEquals(2, run("My Apple!.png", "--palette", "basic", "--scale", "x"));
         assertEquals(1, run("missing.png", "--palette", "basic"));
         assertTrue(err().contains("not found: missing.png"), err());
-        Files.writeString(project.resolve("text.png"), "not an image");
+        write("text.png", "not an image");
         assertEquals(1, run("text.png", "--palette", "basic"));
         assertEquals(1, run("My Apple!.png", "--palette", "basic", "--scale", "3"));
+    }
+
+    @Test
+    void badNamesAreUsageErrors() throws Exception {
+        assertEquals(2, run("My Apple!.png", "--palette", "basic", "--name", "a.b"));
+        assertTrue(err().contains("--name 'a.b' isn't a sprite name"), err());
+        assertEquals(2, run("My Apple!.png", "--palette", "basic", "--frame", "my frame"));
+        assertTrue(err().contains("--frame 'my frame' isn't a frame name"), err());
+        assertFalse(err().contains("internal error"), err());
     }
 
     @Test

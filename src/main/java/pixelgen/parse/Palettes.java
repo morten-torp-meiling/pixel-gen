@@ -16,10 +16,7 @@ public final class Palettes {
 
     /** Resolves a name or path against {@code projectDir}. */
     public static Path resolve(String nameOrPath, Path projectDir) {
-        if (nameOrPath.endsWith(".pal") || nameOrPath.contains("/") || nameOrPath.contains("\\")) {
-            return projectDir.resolve(nameOrPath);
-        }
-        return projectDir.resolve(FOLDER).resolve(nameOrPath + ".pal");
+        return ProjectFiles.resolve(nameOrPath, projectDir, FOLDER, ".pal");
     }
 
     public static Palette load(String nameOrPath, Path projectDir) throws IOException, ParseException {

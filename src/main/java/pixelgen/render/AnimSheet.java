@@ -38,10 +38,6 @@ public final class AnimSheet {
     /** The sheet plus each animation's cell areas (the enlarged grids), in step order. */
     public record Result(BufferedImage image, int scale, Map<String, List<Rectangle>> cells) {}
 
-    public static Result render(Sprite sprite, boolean onion) {
-        return render(sprite, ReviewSheet.autoScale(sprite), onion);
-    }
-
     public static Result render(Sprite sprite, int scale, boolean onion) {
         if (sprite.anims().isEmpty()) throw new IllegalArgumentException("sprite '" + sprite.name() + "' has no anims");
         int cellW = sprite.width() * scale, cellH = LABEL_H + sprite.height() * scale;
@@ -69,7 +65,7 @@ public final class AnimSheet {
         }
         int height = y - GAP + PAD;
 
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = ReviewSheet.newImage(width, height);
         Graphics2D g = img.createGraphics();
         try {
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -83,7 +79,7 @@ public final class AnimSheet {
             for (Anim a : sprite.anims().values()) {
                 g.setColor(TEXT);
                 g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-                g.drawString(String.format(Locale.ROOT, "%s   %s fps, %s, %.2f s", a.name(), number(a.fps()),
+                g.drawString(String.format(Locale.ROOT, "%s   %s fps, %s, %.2f s", a.name(), Anim.number(a.fps()),
                         a.loop() ? "loop" : "once", a.seconds()), PAD, labelY.get(a.name()) + 15);
                 List<Rectangle> rects = cells.get(a.name());
                 for (int i = 0; i < a.steps().size(); i++) {
@@ -92,7 +88,7 @@ public final class AnimSheet {
                     g.setColor(TEXT_DIM);
                     g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
                     g.drawString((i + 1) + ". " + step.frame()
-                            + (step.duration() == 1 ? "" : "  x" + number(step.duration())), r.x, r.y - 5);
+                            + (step.duration() == 1 ? "" : "  x" + Anim.number(step.duration())), r.x, r.y - 5);
                     Grid grid = sprite.frame(step.frame()).grid();
                     ReviewSheet.drawPixels(g, grid, sprite.palette(), r.x, r.y, scale,
                             onion ? previous(sprite, a, i) : null);
@@ -112,9 +108,5 @@ public final class AnimSheet {
         if (i > 0) return sprite.frame(a.steps().get(i - 1).frame()).grid();
         if (a.loop() && a.steps().size() > 1) return sprite.frame(a.steps().getLast().frame()).grid();
         return null;
-    }
-
-    private static String number(double d) {
-        return d == Math.rint(d) ? String.valueOf((long) d) : String.valueOf(d);
     }
 }

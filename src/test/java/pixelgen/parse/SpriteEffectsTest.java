@@ -4,31 +4,21 @@ import org.junit.jupiter.api.Test;
 import pixelgen.model.Grid;
 import pixelgen.model.Sprite;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /** outline and shadow lines in sprite files, inside frames and at sprite level (fx palette). */
-class SpriteEffectsTest {
+class SpriteEffectsTest extends ParserTest {
 
-    private static final PaletteResolver FX = n -> Palettes.load("fx", Path.of("src/test/resources"));
+    private static final PaletteResolver FX = only("fx");
     // 5x4, anchor (2,3): a 1x2 stick in the middle.
     private static final String HEAD = "size 5 4\npalette fx\nanchor 2 3\n";
     private static final String STICK = ".....\n..g..\n..g..\n.....\n";
 
-    private static Sprite parse(String text) throws ParseException {
+    @Override
+    Sprite parse(String text) throws ParseException {
         return SpriteParser.parse(text, "t.sprite", "t", FX);
-    }
-
-    private static List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
-    }
-
-    private static void assertOneError(String text, String part) {
-        List<String> errors = errorsOf(text);
-        assertEquals(1, errors.size(), errors.toString());
-        assertTrue(errors.getFirst().contains(part), errors.getFirst());
     }
 
     @Test
@@ -102,6 +92,7 @@ class SpriteEffectsTest {
         assertOneError(HEAD + "shadow ~ 3\n" + frame, "expected 'shadow <colour> <width> <height>'");
         assertOneError(HEAD + "shadow ~ wide 1\n" + frame, "'wide' is not a whole number");
         assertOneError(HEAD + "shadow ~ 0 1\n" + frame, "shadow size must be between 1 and 256");
+        assertOneError(HEAD + "shadow 3 300\n" + frame, "shadow size must be between 1 and 256");
         assertOneError(HEAD + "frame a\n" + STICK + "shadow\nend\n", "expected 'shadow <colour> <width> <height>'");
     }
 

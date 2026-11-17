@@ -16,9 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** The 'style' line: what a sprite or tileset takes from its style, and what it overrides. */
-class SpriteStyleTest {
-
-    private static final Path RESOURCES = Path.of("src/test/resources");
+class SpriteStyleTest extends ParserTest {
     /** A 5x4 frame with a 1x2 stick in the middle; the anchor is (2,3). */
     private static final String STICK_FRAME = "frame a\n.....\n..g..\n..g..\n.....\nend\n";
 
@@ -45,12 +43,9 @@ class SpriteStyleTest {
         Files.writeString(project.resolve("styles/styles.conf"), "default = " + name + "\n");
     }
 
-    private Sprite parse(String text) throws ParseException {
+    @Override
+    Sprite parse(String text) throws ParseException {
         return SpriteParser.parse(text, "t.sprite", "t", PaletteResolver.cached(project));
-    }
-
-    private List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
     }
 
     @Test

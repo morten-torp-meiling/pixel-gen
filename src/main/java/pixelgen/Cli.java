@@ -21,18 +21,31 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Entry point for the pixel-gen toolchain: {@code gradlew run --args="<command> [args...]"}.
- * Each later step registers its subcommand in {@link #COMMANDS}.
+ * Entry point for the pixel-gen toolchain: {@code pixel-gen <command> [args...]}, with the
+ * launcher {@code gradlew installDist} makes. Every command is registered in {@link #COMMANDS}.
  */
 public final class Cli {
 
-    public static final String VERSION = "0.1.0";
+    /** The version from build.gradle.kts (via the jar manifest); "dev" when run from classes. */
+    public static final String VERSION = java.util.Objects.requireNonNullElse(
+            Cli.class.getPackage().getImplementationVersion(), "dev");
 
-    /** A subcommand. Returns the process exit code. */
+    /**
+     * A subcommand. Returns the process exit code; throws {@link UsageException} for a wrong
+     * command line (see {@link #run(Command, List, PrintStream, PrintStream)}).
+     */
     public interface Command {
         String usage();
         String summary();
         int run(List<String> args, PrintStream out, PrintStream err) throws Exception;
+    }
+
+    /** A wrong command line. Its message says what's wrong; the exit code is 2. */
+    public static final class UsageException extends Exception {
+        @java.io.Serial
+        private static final long serialVersionUID = 1L;
+
+        public UsageException(String message) { super(message); }
     }
 
     private static final Map<String, Command> COMMANDS = new LinkedHashMap<>();
@@ -91,17 +104,27 @@ public final class Cli {
             return 2;
         }
         try {
-            return cmd.run(argv.subList(1, argv.size()), out, err);
+            return run(cmd, argv.subList(1, argv.size()), out, err);
         } catch (Exception e) {
             err.println("Error: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
             return 1;
         }
     }
 
+    /** Runs one command; a {@link UsageException} is printed and gives exit code 2. */
+    public static int run(Command cmd, List<String> args, PrintStream out, PrintStream err) throws Exception {
+        try {
+            return cmd.run(args, out, err);
+        } catch (UsageException e) {
+            err.println(e.getMessage());
+            return 2;
+        }
+    }
+
     private static void printHelp(PrintStream out) {
         out.println("pixel-gen " + VERSION + " - text-grid pixel art toolchain");
         out.println();
-        out.println("Usage: gradlew run -q --args=\"<command> [args...]\"");
+        out.println("Usage: pixel-gen <command> [args...]");
         out.println();
         out.println("Commands:");
         int width = COMMANDS.values().stream().mapToInt(c -> c.usage().length()).max().orElse(0);

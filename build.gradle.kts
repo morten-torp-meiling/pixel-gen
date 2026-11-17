@@ -25,6 +25,11 @@ application {
     mainClass = "pixelgen.Cli"
 }
 
+tasks.jar {
+    // Read by Cli.VERSION, so the version lives only here.
+    manifest { attributes("Implementation-Version" to project.version) }
+}
+
 tasks.named<JavaExec>("run") {
     // Relative asset paths given to the CLI resolve against the project folder.
     workingDir = projectDir

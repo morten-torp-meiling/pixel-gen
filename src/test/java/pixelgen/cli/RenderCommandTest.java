@@ -2,44 +2,25 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class RenderCommandTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class RenderCommandTest extends CommandTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        Files.createDirectories(project.resolve("assets"));
-        Files.copy(Path.of("src/test/resources/sprites/apple.sprite"), project.resolve("assets/apple.sprite"));
-        Files.writeString(project.resolve("assets/two.sprite"),
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        copy("sprites/apple.sprite", "assets/apple.sprite");
+        write("assets/two.sprite",
                 "size 2 1\npalette basic\nframe a\nKw\nend\nframe b\nw.\nend\n");
     }
 
-    private int run(String... args) throws Exception {
-        return new RenderCommand(project).run(List.of(args),
-                new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
-    private String err() { return errBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new RenderCommand(project); }
 
     private BufferedImage read(String path) throws Exception {
         return ImageIO.read(project.resolve(path).toFile());
@@ -50,6 +31,15 @@ class RenderCommandTest {
         assertEquals(0, run("assets/two.sprite"));
         assertTrue(out().contains("wrote preview/two/a.png"), out());
         assertTrue(out().contains("wrote preview/two/b.png"), out());
+    }
+
+    @Test
+    void twoFilesWithOneNameAreWarnedAbout() throws Exception {
+        Files.createDirectories(project.resolve("assets/other"));
+        write("assets/other/two.sprite", "size 1 1\npalette basic\nframe a\nK\nend\n");
+        assertEquals(0, run("assets"));
+        assertTrue(out().contains("warning: assets/other/two.sprite also writes images as 'two'; this file replaces them"),
+                out());
     }
 
     @Test
@@ -91,7 +81,7 @@ class RenderCommandTest {
 
     @Test
     void invalidSpritesAreReportedAndOthersStillRendered() throws Exception {
-        Files.writeString(project.resolve("assets/bad.sprite"), "size 1 1\npalette basic\nframe a\nQ\nend\n");
+        write("assets/bad.sprite", "size 1 1\npalette basic\nframe a\nQ\nend\n");
         assertEquals(1, run("assets"));
         assertTrue(out().contains("FAIL assets/bad.sprite"), out());
         assertTrue(Files.exists(project.resolve("preview/apple/idle.png")));
@@ -99,7 +89,7 @@ class RenderCommandTest {
 
     @Test
     void variantsAreRenderedIntoTheirOwnFolders() throws Exception {
-        Files.writeString(project.resolve("assets/two.sprite"),
+        write("assets/two.sprite",
                 "size 2 1\npalette basic\nframe a\nKw\nend\nvariant two_red recolor K>r\n");
         assertEquals(0, run("assets/two.sprite"));
         assertEquals(0xFF000000, read("preview/two/a.png").getRGB(0, 0));

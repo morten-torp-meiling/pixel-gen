@@ -2,45 +2,24 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /** tilecheck, tiles, and tilesets in the general commands (validate, review). */
-class TileCommandsTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class TileCommandsTest extends CommandTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        Files.createDirectories(project.resolve("assets/tiles"));
-        Files.copy(Path.of("src/test/resources/tilesets/ground.tileset"), project.resolve("assets/tiles/ground.tileset"));
-        Files.writeString(project.resolve("assets/tiles/plain.tileset"),
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        copy("tilesets/ground.tileset", "assets/tiles/ground.tileset");
+        write("assets/tiles/plain.tileset",
                 "palette basic\nsize 2 2\ntile g\ngG\nGg\nend\nvariant plain_snow recolor g>w G>k\n");
     }
-
-    private int run(pixelgen.Cli.Command c, String... args) throws Exception {
-        outBuf.reset();
-        errBuf.reset();
-        return c.run(List.of(args), new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
 
     @Test
     void tilecheckReportsSeamsAndDrawsTheRepeats() throws Exception {
@@ -61,10 +40,10 @@ class TileCommandsTest {
 
     @Test
     void tilesWritesTheGoldenTileSetAndAnAtlasPerVariant() throws Exception {
-        assertEquals(0, run(new TilesCommand(project), "assets"), out() + errBuf);
+        assertEquals(0, run(new TilesCommand(project), "assets"), out() + err());
         assertTrue(out().contains("wrote preview/godot/ground.tres and ground.png (4 tiles of 4x4 in 2x3,"
                 + " atlas at res://tiles/ground.png)"), out());
-        String golden = Files.readString(Path.of("src/test/resources/golden/ground.tres")).replace("\r\n", "\n");
+        String golden = Files.readString(RESOURCES.resolve("golden/ground.tres")).replace("\r\n", "\n");
         assertEquals(golden, Files.readString(project.resolve("preview/godot/ground.tres")));
         BufferedImage atlas = ImageIO.read(project.resolve("preview/godot/ground.png").toFile());
         assertEquals(12, atlas.getWidth());
@@ -84,7 +63,7 @@ class TileCommandsTest {
         assertEquals(1, run(cmd, "missing.tileset"));
         Files.createDirectories(project.resolve("empty"));
         assertEquals(1, run(cmd, "empty"));
-        assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("no .tileset files found in empty"));
+        assertTrue(err().contains("no .tileset files found in empty"));
     }
 
     @Test
@@ -93,7 +72,7 @@ class TileCommandsTest {
         assertTrue(out().contains("ok   assets/tiles/ground.tileset (4 tiles of 4x4, 0 parts, 3 columns, palette basic,"
                 + " wrap x: edge)"), out());
         assertTrue(out().contains("variants plain_snow"), out());
-        assertEquals(0, run(new ReviewCommand(project), "assets/tiles/ground.tileset"), out() + errBuf);
+        assertEquals(0, run(new ReviewCommand(project), "assets/tiles/ground.tileset"), out() + err());
         assertTrue(Files.exists(project.resolve("preview/ground/review.png")));
     }
 }

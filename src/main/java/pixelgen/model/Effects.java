@@ -13,11 +13,20 @@ public final class Effects {
         /** Every outline pixel in the given colour. */
         OUTER,
         /**
-         * "Sel-out": on the lit sides (the top and left, with light from the top left) the outline
-         * takes the darkest shade of the colour it borders (so a leaf gets a dark green edge),
-         * elsewhere the given colour. This keeps black off the lit edges.
+         * "Sel-out": on the sides facing the style's {@link Light} (the top and left, with light
+         * from the top left) the outline takes the darkest shade of the colour it borders (so a
+         * leaf gets a dark green edge), elsewhere the given colour. This keeps black off the lit edges.
          */
-        SELECTIVE
+        SELECTIVE;
+
+        /** The word files use: {@code outer} or {@code selective}. */
+        public String word() { return name().toLowerCase(java.util.Locale.ROOT); }
+
+        /** The mode for {@code outer} or {@code selective}, or null. */
+        public static OutlineMode parse(String word) {
+            for (OutlineMode m : values()) if (m.word().equals(word)) return m;
+            return null;
+        }
     }
 
     /** An effect's image, and whether some of it fell outside the frame. */
@@ -26,14 +35,9 @@ public final class Effects {
     /**
      * Adds a 1 px outline around every solid (opaque) shape, on its four sides (not diagonally,
      * which keeps corners round). Cells that are empty or hold a translucent colour, such as a
-     * shadow, can become outline; opaque cells never change. Selective outlines are lit from the
-     * top left.
+     * shadow, can become outline; opaque cells never change. Selective outlines are lit from
+     * {@code light}.
      */
-    public static Result outline(Grid grid, Palette palette, char symbol, OutlineMode mode) {
-        return outline(grid, palette, symbol, mode, Light.TOP_LEFT);
-    }
-
-    /** As {@link #outline(Grid, Palette, char, OutlineMode)}, with selective outlines lit from {@code light}. */
     public static Result outline(Grid grid, Palette palette, char symbol, OutlineMode mode, Light light) {
         int w = grid.width(), h = grid.height();
         char[] in = grid.cells();

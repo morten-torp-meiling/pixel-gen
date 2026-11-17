@@ -8,20 +8,11 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PaletteParserTest {
+class PaletteParserTest extends ParserTest {
 
-    private static Palette parse(String text) throws ParseException {
+    @Override
+    Palette parse(String text) throws ParseException {
         return PaletteParser.parse(text, "t.pal", "t");
-    }
-
-    private static List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
-    }
-
-    private static void assertOneErrorContaining(String text, String part) {
-        List<String> errors = errorsOf(text);
-        assertEquals(1, errors.size(), errors.toString());
-        assertTrue(errors.getFirst().contains(part), errors.getFirst());
     }
 
     @Test
@@ -42,7 +33,7 @@ class PaletteParserTest {
 
     @Test
     void invisibleColoursAreRejectedAndTranslucentOnesBelongInUnorderedRamps() throws Exception {
-        assertOneErrorContaining("ramp a\n ~ #00000000\n K #000000\n", "t.pal:2: '~' has alpha 00, which is invisible");
+        assertOneError("ramp a\n ~ #00000000\n K #000000\n", "t.pal:2: '~' has alpha 00, which is invisible");
         List<String> w = parse("ramp a\n K #000000\n ~ #ffffff80\n").warnings();
         assertTrue(w.stream().anyMatch(m -> m.contains("t.pal:3: '~' is translucent; put it in an unordered ramp")),
                 w.toString());
@@ -82,40 +73,40 @@ class PaletteParserTest {
 
     @Test
     void reportsBadHexWithLineNumber() {
-        assertOneErrorContaining("ramp a\n K #12345\n", "t.pal:2: '#12345' is not a colour");
+        assertOneError("ramp a\n K #12345\n", "t.pal:2: '#12345' is not a colour");
     }
 
     @Test
     void reportsDuplicateSymbolWithFirstLine() {
-        assertOneErrorContaining("ramp a\n K #000000\n K #111111\n", "t.pal:3: symbol 'K' is already used on line 2");
+        assertOneError("ramp a\n K #000000\n K #111111\n", "t.pal:3: symbol 'K' is already used on line 2");
     }
 
     @Test
     void rejectsTransparentAndHashAsSymbols() {
-        assertOneErrorContaining("ramp a\n . #000000\n", "'.' means transparent");
+        assertOneError("ramp a\n . #000000\n", "'.' means transparent");
         // A line starting with '#' is a comment, so '#' can never define a colour.
-        assertOneErrorContaining("ramp a\n # #000000\n", "ramp 'a' has no colours");
+        assertOneError("ramp a\n # #000000\n", "ramp 'a' has no colours");
     }
 
     @Test
     void rejectsMultiCharacterSymbols() {
-        assertOneErrorContaining("ramp a\n Kk #000000\n", "unknown line 'Kk #000000'");
+        assertOneError("ramp a\n Kk #000000\n", "unknown line 'Kk #000000'");
     }
 
     @Test
     void rejectsColoursOutsideARamp() {
-        assertOneErrorContaining("K #000000\n", "outside a ramp");
+        assertOneError("K #000000\n", "outside a ramp");
     }
 
     @Test
     void rejectsMissingColourValue() {
-        assertOneErrorContaining("ramp a\n K\n", "colour 'K' has no value");
+        assertOneError("ramp a\n K\n", "colour 'K' has no value");
     }
 
     @Test
     void rejectsEmptyAndDuplicateRamps() {
-        assertOneErrorContaining("ramp a\nramp b\n K #000000\n", "ramp 'a' has no colours");
-        assertOneErrorContaining("ramp a\n K #000000\nramp a\n k #111111\n", "ramp 'a' is already defined on line 1");
+        assertOneError("ramp a\nramp b\n K #000000\n", "ramp 'a' has no colours");
+        assertOneError("ramp a\n K #000000\nramp a\n k #111111\n", "ramp 'a' is already defined on line 1");
     }
 
     @Test
@@ -125,7 +116,7 @@ class PaletteParserTest {
 
     @Test
     void rejectsEmptyPalette() {
-        assertOneErrorContaining("# nothing\n", "the palette has no colours");
+        assertOneError("# nothing\n", "the palette has no colours");
     }
 
     @Test

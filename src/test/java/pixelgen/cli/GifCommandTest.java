@@ -2,44 +2,25 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class GifCommandTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class GifCommandTest extends CommandTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        Files.createDirectories(project.resolve("assets"));
-        Files.copy(Path.of("src/test/resources/sprites/apple.sprite"), project.resolve("assets/apple.sprite"));
-        Files.writeString(project.resolve("assets/blink.sprite"),
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        copy("sprites/apple.sprite", "assets/apple.sprite");
+        write("assets/blink.sprite",
                 "size 2 2\npalette basic\nframe on\nKK\nKK\nend\nframe off\nww\nww\nend\n"
                         + "anim blink fps 2 loop: on off\nanim once fps 10 once: on\nvariant blink_red recolor K>r\n");
     }
 
-    private int run(String... args) throws Exception {
-        return new GifCommand(project).run(List.of(args),
-                new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
-    private String err() { return errBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new GifCommand(project); }
 
     @Test
     void writesEveryAnimForTheSpriteAndItsVariants() throws Exception {

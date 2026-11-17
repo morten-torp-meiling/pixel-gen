@@ -41,7 +41,7 @@ public final class MockupSheet {
         int width = Math.max(map.x + map.width, PAD + mapW * 3 + GAP) + PAD;
         int height = smallY + mapH * 2 + PAD;
 
-        BufferedImage img = new BufferedImage(Math.max(width, 420), height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = ReviewSheet.newImage(Math.max(width, 420), height);
         Graphics2D g = img.createGraphics();
         try {
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);

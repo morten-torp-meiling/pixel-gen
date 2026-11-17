@@ -2,43 +2,25 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SheetCommandTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class SheetCommandTest extends CommandTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        Files.createDirectories(project.resolve("assets"));
-        Files.writeString(project.resolve("assets/blink.sprite"),
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        write("assets/blink.sprite",
                 "size 2 1\npalette basic\nframe on\nKK\nend\nframe off\nww\nend\n"
                         + "anim blink fps 2 loop: on off\nvariant blink_red recolor K>r\n");
     }
 
-    private int run(String... args) throws Exception {
-        return new SheetCommand(project).run(List.of(args),
-                new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new SheetCommand(project); }
 
     @Test
     void writesASheetPerSpriteAndVariantWithTheSameLayout() throws Exception {

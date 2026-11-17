@@ -13,9 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class StyleParserTest {
-
-    private static final Path RESOURCES = Path.of("src/test/resources");
+class StyleParserTest extends ParserTest {
 
     /** Every palette name resolves to the 'basic' test palette (symbols K k w G g y r). */
     private static final PaletteResolver BASIC = name -> {
@@ -25,12 +23,9 @@ class StyleParserTest {
 
     @TempDir Path dir;
 
-    private Style parse(String text) throws ParseException {
+    @Override
+    Style parse(String text) throws ParseException {
         return StyleParser.parse(text, "t.style", "t", dir, BASIC);
-    }
-
-    private List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
     }
 
     @Test
@@ -131,6 +126,20 @@ class StyleParserTest {
     @Test
     void outlineColourMustBeInThePalette() {
         assertEquals(List.of("t.style:2: 'Q' is not in palette 'basic'"), errorsOf("palette basic\noutline Q\n"));
+    }
+
+    @Test
+    void tileSizeMustBeTwoWholeNumbers() {
+        assertEquals(List.of("t.style:2: expected 'tile <width> <height>'"), errorsOf("palette basic\ntile 16\n"));
+        assertEquals(List.of("t.style:2: 'big' is not a whole number; expected 'tile <width> <height>'"),
+                errorsOf("palette basic\ntile big 16\n"));
+    }
+
+    @Test
+    void outlineModeWords() {
+        for (Effects.OutlineMode m : Effects.OutlineMode.values()) assertEquals(m, Effects.OutlineMode.parse(m.word()));
+        assertEquals("selective", Effects.OutlineMode.SELECTIVE.word());
+        assertNull(Effects.OutlineMode.parse("SELECTIVE"));
     }
 
     @Test

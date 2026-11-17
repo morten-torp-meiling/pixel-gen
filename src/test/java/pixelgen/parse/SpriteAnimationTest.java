@@ -5,33 +5,23 @@ import pixelgen.model.Anim;
 import pixelgen.model.Grid;
 import pixelgen.model.Sprite;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Derived frames ('frame x from y ...') and 'anim' lines (fx palette: K k w | G g | y r | ~). */
-class SpriteAnimationTest {
+class SpriteAnimationTest extends ParserTest {
 
-    private static final PaletteResolver FX = n -> Palettes.load("fx", Path.of("src/test/resources"));
+    private static final PaletteResolver FX = only("fx");
     // 4x3, anchor (2,2). Frame 'r' (lines 4-8) has a mark in its top-left corner.
     private static final String HEAD = "size 4 3\npalette fx\nanchor 2 2\nframe r\nKg..\n.g..\n.gg.\nend\n";
 
-    private static Sprite parse(String text) throws ParseException {
+    @Override
+    Sprite parse(String text) throws ParseException {
         return SpriteParser.parse(text, "t.sprite", "t", FX);
     }
 
-    private static List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
-    }
-
-    private static void assertOneError(String text, String part) {
-        List<String> errors = errorsOf(text);
-        assertEquals(1, errors.size(), errors.toString());
-        assertTrue(errors.getFirst().contains(part), errors.getFirst());
-    }
-
-    private static Grid frame(String extra, String name) throws ParseException {
+    private Grid frame(String extra, String name) throws ParseException {
         return parse(HEAD + extra).frame(name).grid();
     }
 

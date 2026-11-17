@@ -2,7 +2,6 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import pixelgen.model.Tileset;
 import pixelgen.parse.MockupParser;
 import pixelgen.parse.Palettes;
@@ -13,11 +12,6 @@ import pixelgen.render.MockupSheet;
 import javax.imageio.ImageIO;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,34 +19,22 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** The .mockup format, the mock map image and the mockup command. */
-class MockupCommandTest {
-
-    @TempDir Path project;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+class MockupCommandTest extends CommandTest {
 
     /** The sample tileset (basic palette, 4x4 tiles: grass, grass_b, edge, seam). */
     private static Tileset ground() throws Exception {
-        return TilesetParser.parseFile(Path.of("src/test/resources/tilesets/ground.tileset"), "ground.tileset",
-                n -> Palettes.load("basic", Path.of("src/test/resources")));
+        return TilesetParser.parseFile(RESOURCES.resolve("tilesets/ground.tileset"), "ground.tileset",
+                n -> Palettes.load("basic", RESOURCES));
     }
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.createDirectories(project.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), project.resolve("palettes/basic.pal"));
-        Files.copy(Path.of("src/test/resources/tilesets/ground.tileset"), project.resolve("ground.tileset"));
+        copy("palettes/basic.pal", "palettes/basic.pal");
+        copy("tilesets/ground.tileset", "ground.tileset");
     }
 
-    private int run(String... args) throws Exception {
-        outBuf.reset();
-        errBuf.reset();
-        return new MockupCommand(project).run(List.of(args), new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new MockupCommand(project); }
 
     @Test
     void parsesLegendAndMap() throws Exception {
@@ -106,17 +88,17 @@ class MockupCommandTest {
 
     @Test
     void commandWritesTheImageAndHandlesVariantsAndErrors() throws Exception {
-        Files.writeString(project.resolve("patch.mockup"), "g = grass grass_b\ne = edge\nmap\n  ggg\n  eee\n");
-        assertEquals(0, run("ground.tileset", "patch.mockup", "--grid"), out() + errBuf);
+        write("patch.mockup", "g = grass grass_b\ne = edge\nmap\n  ggg\n  eee\n");
+        assertEquals(0, run("ground.tileset", "patch.mockup", "--grid"), out() + err());
         assertTrue(out().contains("wrote preview/ground/mockup-patch.png (3x2 tiles, scale 4x)"), out());
         BufferedImage img = ImageIO.read(project.resolve("preview/ground/mockup-patch.png").toFile());
         assertTrue(img.getWidth() >= 3 * 4 * 4);
 
         assertEquals(1, run("ground.tileset", "patch.mockup", "--variant", "winter"));
-        assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("no variant 'winter' in ground.tileset (it has none)"));
+        assertTrue(err().contains("no variant 'winter' in ground.tileset (it has none)"));
         assertEquals(2, run("ground.tileset"));
         assertEquals(1, run("ground.tileset", "missing.mockup"));
-        Files.writeString(project.resolve("bad.mockup"), "g = lawn\nmap\n  g\n");
+        write("bad.mockup", "g = lawn\nmap\n  g\n");
         assertEquals(1, run("ground.tileset", "bad.mockup"));
         assertTrue(out().contains("no tile 'lawn'"), out());
     }

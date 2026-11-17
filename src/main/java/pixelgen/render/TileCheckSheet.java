@@ -62,7 +62,7 @@ public final class TileCheckSheet {
         }
         int height = y + rowH + TICK + PAD;
 
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = ReviewSheet.newImage(width, height);
         Graphics2D g = img.createGraphics();
         try {
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);

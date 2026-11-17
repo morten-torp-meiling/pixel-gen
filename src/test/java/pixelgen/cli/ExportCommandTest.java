@@ -2,53 +2,35 @@ package pixelgen.cli;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ExportCommandTest {
-
-    @TempDir Path root;
+class ExportCommandTest extends CommandTest {
     Path tool, game;
-
-    private final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
-    private final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
 
     @BeforeEach
     void setUp() throws Exception {
-        tool = root.resolve("art");
-        game = root.resolve("game");
+        tool = project.resolve("art");
+        game = project.resolve("game");
         Files.createDirectories(game);
         Files.writeString(game.resolve("project.godot"), "config_version=5\n");
-        Files.createDirectories(tool.resolve("palettes"));
-        Files.copy(Path.of("src/test/resources/palettes/basic.pal"), tool.resolve("palettes/basic.pal"));
-        Files.createDirectories(tool.resolve("assets/tiles"));
-        Files.copy(Path.of("src/test/resources/sprites/blink.sprite"), tool.resolve("assets/blink.sprite"));
+        copy("palettes/basic.pal", tool.resolve("palettes/basic.pal"));
+        copy("sprites/blink.sprite", tool.resolve("assets/blink.sprite"));
         append("assets/blink.sprite", "variant blink_red recolor K>r\n");
-        Files.copy(Path.of("src/test/resources/tilesets/ground.tileset"), tool.resolve("assets/tiles/ground.tileset"));
+        copy("tilesets/ground.tileset", tool.resolve("assets/tiles/ground.tileset"));
         Files.writeString(tool.resolve("pixelgen.conf"), "godot.project = ../game\n");
     }
 
     private void append(String file, String text) throws Exception {
-        Files.writeString(tool.resolve(file), text, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+        append(tool.resolve(file), text);
     }
 
-    private int run(String... args) throws Exception {
-        outBuf.reset();
-        errBuf.reset();
-        return new ExportCommand(tool).run(List.of(args), new PrintStream(outBuf, true, StandardCharsets.UTF_8),
-                new PrintStream(errBuf, true, StandardCharsets.UTF_8));
-    }
-
-    private String out() { return outBuf.toString(StandardCharsets.UTF_8); }
+    @Override
+    pixelgen.Cli.Command command() { return new ExportCommand(tool); }
 
     private String done() {
         return out().lines().filter(l -> l.startsWith("done: ")).findFirst().orElse(out())
@@ -56,12 +38,12 @@ class ExportCommandTest {
     }
 
     private static String golden(String name) throws Exception {
-        return Files.readString(Path.of("src/test/resources/golden/" + name)).replace("\r\n", "\n");
+        return Files.readString(RESOURCES.resolve("golden/" + name)).replace("\r\n", "\n");
     }
 
     @Test
     void firstRunExportsEverythingIntoTheArtFolderSecondRunNothing() throws Exception {
-        assertEquals(0, run(), out() + errBuf);
+        assertEquals(0, run(), out() + err());
         assertTrue(out().contains("exported assets/blink.sprite -> res://art: blink, blink_red"), out());
         assertTrue(out().contains("exported assets/tiles/ground.tileset -> res://art/tiles: ground\n"
                 .replace("\n", System.lineSeparator()) + "     warning: 1 seam doesn't match; run tilecheck to see it"),
@@ -102,8 +84,27 @@ class ExportCommandTest {
         run();
         assertEquals("done: 2 exported, 0 unchanged, 0 removed, 0 failed", done());
 
+        // So does a change to the ramps alone (selective outlines use them).
+        Files.writeString(tool.resolve("palettes/basic.pal"),
+                Files.readString(tool.resolve("palettes/basic.pal")).replace("ramp green\n", "ramp green unordered\n"));
+        run();
+        assertEquals("done: 2 exported, 0 unchanged, 0 removed, 0 failed", done());
+
         run("--all");
         assertEquals("done: 2 exported, 0 unchanged, 0 removed, 0 failed", done());
+    }
+
+    @Test
+    void twoSourcesWritingOneFileAreWarnedAboutWhicheverChanged() throws Exception {
+        Files.writeString(tool.resolve("assets/twin.sprite"), "sprite blink_red\nsize 1 1\npalette basic\nframe a\nK\nend\n");
+        String warning = "warning: res://art/blink_red.png is written by both assets/blink.sprite and assets/twin.sprite";
+        run();
+        assertTrue(out().contains(warning), out());
+        run();
+        assertTrue(out().contains(warning), "still there when neither changed: " + out());
+        append("assets/blink.sprite", "# a change to the first, so it overwrites the unchanged second\n");
+        run();
+        assertTrue(out().contains(warning), out());
     }
 
     @Test
@@ -184,9 +185,9 @@ class ExportCommandTest {
         assertEquals(2, run("--everything"));
         Files.writeString(tool.resolve("pixelgen.conf"), "godot.project = ../nowhere\n");
         assertEquals(1, run());
-        assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("no project.godot in"));
+        assertTrue(err().contains("no project.godot in"));
         Files.delete(tool.resolve("pixelgen.conf"));
         assertEquals(1, run());
-        assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("create one with a line like 'godot.project"));
+        assertTrue(err().contains("create one with a line like 'godot.project"));
     }
 }

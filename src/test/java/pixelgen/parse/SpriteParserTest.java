@@ -6,14 +6,11 @@ import pixelgen.model.Palette;
 import pixelgen.model.Sprite;
 
 import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SpriteParserTest {
-
-    private static final Path RESOURCES = Path.of("src/test/resources");
+class SpriteParserTest extends ParserTest {
 
     /** Every test palette name resolves to the 'basic' test palette (symbols K k w G g y r). */
     private static final PaletteResolver BASIC = name -> {
@@ -25,18 +22,9 @@ class SpriteParserTest {
     /** A valid 4x2 sprite header; tests append blocks to it. */
     private static final String HEAD = "size 4 2\npalette basic\n";
 
-    private static Sprite parse(String text) throws ParseException {
+    @Override
+    Sprite parse(String text) throws ParseException {
         return SpriteParser.parse(text, "t.sprite", "t", BASIC);
-    }
-
-    private static List<String> errorsOf(String text) {
-        return assertThrows(ParseException.class, () -> parse(text)).errors();
-    }
-
-    private static void assertOneError(String text, String expectedPart) {
-        List<String> errors = errorsOf(text);
-        assertEquals(1, errors.size(), "errors: " + errors);
-        assertTrue(errors.getFirst().contains(expectedPart), errors.getFirst());
     }
 
     // ---- valid input ----

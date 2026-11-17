@@ -1,10 +1,10 @@
 package pixelgen.cli;
 
 import pixelgen.Cli;
-import pixelgen.model.Effects;
 import pixelgen.model.Style;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
+import pixelgen.parse.ProjectFiles;
 import pixelgen.parse.StyleParser;
 import pixelgen.parse.Styles;
 
@@ -12,6 +12,7 @@ import java.io.PrintStream;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@code style <name|file.style>} checks a style and prints its settings; {@code style} alone
@@ -23,15 +24,13 @@ public final class StyleCommand implements Cli.Command {
 
     public StyleCommand(Path projectDir) { this.projectDir = projectDir; }
 
-    public String usage() { return "style [<name>]"; }
+    public String usage() { return "style [<name|file.style>]"; }
 
     public String summary() { return "Check a style and show its settings, or list the styles"; }
 
     public int run(List<String> args, PrintStream out, PrintStream err) throws Exception {
-        if (args.size() > 1 || (args.size() == 1 && args.getFirst().startsWith("-"))) {
-            err.println("expected: style [<name|file.style>]");
-            return 2;
-        }
+        List<String> words = Options.parse(args, Set.of(), Set.of()).words();
+        if (words.size() > 1) throw new Cli.UsageException("expected: " + usage());
         PaletteResolver resolver = PaletteResolver.cached(projectDir);
         String defaultName;
         try {
@@ -40,8 +39,8 @@ public final class StyleCommand implements Cli.Command {
             for (String m : e.errors()) err.println(m);
             return 1;
         }
-        return args.isEmpty() ? list(resolver, defaultName, out, err)
-                : show(args.getFirst(), resolver, defaultName, out, err);
+        return words.isEmpty() ? list(resolver, defaultName, out, err)
+                : show(words.getFirst(), resolver, defaultName, out, err);
     }
 
     private int show(String nameOrPath, PaletteResolver resolver, String defaultName, PrintStream out,
@@ -50,7 +49,8 @@ public final class StyleCommand implements Cli.Command {
         try {
             s = resolver.style(nameOrPath);
         } catch (NoSuchFileException e) {
-            err.println("style '" + nameOrPath + "' not found (" + e.getFile() + ")");
+            err.println("style '" + nameOrPath + "' not found ("
+                    + ProjectFiles.display(projectDir, Path.of(e.getFile())) + ")");
             return 1;
         } catch (ParseException e) {
             for (String m : e.errors()) err.println(m);
@@ -62,7 +62,7 @@ public final class StyleCommand implements Cli.Command {
         out.println("  outline  " + outline(s));
         out.println("  shadow   " + (s.hasShadow() ? String.valueOf(s.shadow()) : "none"));
         out.println("  tile     " + s.tileWidth() + "x" + s.tileHeight());
-        out.println("  guide    " + relative(s.guide()));
+        out.println("  guide    " + ProjectFiles.display(projectDir, s.guide()));
         for (String w : s.warnings()) err.println("warning: " + w);
         return 0;
     }
@@ -102,11 +102,6 @@ public final class StyleCommand implements Cli.Command {
 
     private static String outline(Style s) {
         if (!s.hasOutline()) return "none";
-        return s.outline() + (s.outlineMode() == Effects.OutlineMode.SELECTIVE ? " selective" : " outer");
-    }
-
-    private String relative(Path p) {
-        Path dir = projectDir.toAbsolutePath().normalize();
-        return p.startsWith(dir) ? dir.relativize(p).toString().replace('\\', '/') : p.toString();
+        return s.outline() + " " + s.outlineMode().word();
     }
 }

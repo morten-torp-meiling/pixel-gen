@@ -39,17 +39,6 @@ public record Terrain(String name, Grid raised, Grid lower, char bank, char lip,
         profiles = Map.copyOf(profiles);
     }
 
-    /** A terrain lit from the top left. */
-    public Terrain(String name, Grid raised, Grid lower, char bank, char lip, char shadow,
-                   Map<String, int[]> profiles) {
-        this(name, raised, lower, bank, lip, shadow, profiles, Light.TOP_LEFT);
-    }
-
-    /** The same terrain lit from {@code newLight}. */
-    public Terrain withLight(Light newLight) {
-        return new Terrain(name, raised, lower, bank, lip, shadow, profiles, newLight);
-    }
-
     /**
      * The tile for a combination of profiles: raised ground where any of them reaches
      * ({@code union}: an outer corner), or where all of them reach (an inner corner).

@@ -52,10 +52,7 @@ public final class TilesetParser {
 
     public static Tileset parseFile(Path file, String displayName, PaletteResolver palettes)
             throws IOException, ParseException {
-        String fileName = file.getFileName().toString();
-        String defaultName = fileName.endsWith(".tileset")
-                ? fileName.substring(0, fileName.length() - ".tileset".length())
-                : fileName;
+        String defaultName = ProjectFiles.baseName(file, ".tileset");
         return parse(Files.readString(file, StandardCharsets.UTF_8), displayName, defaultName, palettes);
     }
 
@@ -115,11 +112,11 @@ public final class TilesetParser {
         try {
             s = SpriteParser.parse(sprite.toString(), source, defaultName, palettes, true);
         } catch (ParseException e) {
-            for (String m : e.errors()) errors.add(translate(m));
+            for (String m : e.errors()) errors.add(translate(m, source));
         }
         if (!errors.isEmpty()) throw new ParseException(SpriteParser.sortByLine(errors, source));
 
-        List<String> warnings = s.warnings().stream().map(TilesetParser::translate).toList();
+        List<String> warnings = s.warnings().stream().map(w -> translate(w, source)).toList();
         Sprite tiles = new Sprite(s.name(), s.width(), s.height(), s.palette(), s.style(), s.anchorX(), s.anchorY(),
                 s.parts(), s.frames(), s.anims(), s.variants(), warnings);
         int cols = columns > 0 ? columns : Math.min(tiles.frames().size(), Tileset.DEFAULT_COLUMNS);
@@ -154,19 +151,36 @@ public final class TilesetParser {
         return String.join(" ", kept);
     }
 
-    private static final Pattern QUOTED_NAME = Pattern.compile("'([A-Za-z0-9_-]+)'");
+    /** A name in quotes, or a path (anything with a slash). */
+    private static final Pattern KEPT = Pattern.compile("'([A-Za-z0-9_-]+)'|[^\\s()]*[/\\\\][^\\s()]*");
     private static final Set<String> WORDS = Set.of("frame", "frames", "sprite", "sprites");
 
     /**
-     * A sprite-parser message in tileset words: frame becomes tile, sprite becomes tileset. Names
-     * in quotes ({@code 'grass_a'}) are left alone; keywords in quotes ({@code 'frame <name>'}) are not.
+     * A sprite-parser message in tileset words: frame becomes tile, sprite becomes tileset. The
+     * {@code source:line:} prefix, paths, and names in quotes ({@code 'grass_a'}) are left alone;
+     * keywords in quotes ({@code 'frame <name>'}) are not. Lines after the first quote another
+     * file's errors (a palette's or a style's) and are left alone too.
      */
-    static String translate(String message) {
+    static String translate(String message, String source) {
+        int start = 0;
+        String prefix = source + ":";
+        if (message.startsWith(prefix)) {
+            int i = prefix.length();
+            while (i < message.length() && Character.isDigit(message.charAt(i))) i++;
+            if (i > prefix.length() && message.startsWith(":", i)) i++;
+            start = i;
+        }
+        int end = message.indexOf('\n');
+        if (end < 0) end = message.length();
+        return message.substring(0, start) + words(message.substring(start, end)) + message.substring(end);
+    }
+
+    private static String words(String message) {
         List<String> names = new ArrayList<>();
-        Matcher m = QUOTED_NAME.matcher(message);
+        Matcher m = KEPT.matcher(message);
         StringBuilder protectedText = new StringBuilder();
         while (m.find()) {
-            if (WORDS.contains(m.group(1))) continue;
+            if (m.group(1) != null && WORDS.contains(m.group(1))) continue;
             m.appendReplacement(protectedText, "\u0000" + names.size() + "\u0000");
             names.add(m.group());
         }

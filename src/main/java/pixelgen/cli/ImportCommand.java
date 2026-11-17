@@ -6,18 +6,18 @@ import pixelgen.model.Palette;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
 import pixelgen.parse.PngImporter;
+import pixelgen.parse.ProjectFiles;
 import pixelgen.parse.SpriteParser;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * {@code import <image.png> --palette <name> [--name n] [--frame f] [--scale N] [--out file.sprite] [--force]}
@@ -36,39 +36,20 @@ public final class ImportCommand implements Cli.Command {
 
     public String summary() { return "Convert a PNG to .sprite text, mapping colours to the palette"; }
 
-    public int run(List<String> args, PrintStream out, PrintStream err) throws IOException {
-        List<String> positional = new ArrayList<>();
-        String paletteName = null, name = null, frame = "idle", outFile = null;
-        Integer scale = null;
-        boolean force = false;
-        for (int i = 0; i < args.size(); i++) {
-            String a = args.get(i);
-            if (a.equals("--force")) {
-                force = true;
-                continue;
-            }
-            if (!a.startsWith("--")) {
-                positional.add(a);
-                continue;
-            }
-            if (i + 1 >= args.size()) return usageError(err, a + " needs a value");
-            String v = args.get(++i);
-            switch (a) {
-                case "--palette" -> paletteName = v;
-                case "--name" -> name = v;
-                case "--frame" -> frame = v;
-                case "--out" -> outFile = v;
-                case "--scale" -> {
-                    try {
-                        scale = Integer.parseInt(v);
-                    } catch (NumberFormatException e) {
-                        return usageError(err, "--scale needs a whole number, not '" + v + "'");
-                    }
-                }
-                default -> { return usageError(err, "unknown option " + a); }
-            }
+    public int run(List<String> args, PrintStream out, PrintStream err) throws Exception {
+        Options o = Options.parse(args, Set.of("--force"), Set.of("--palette", "--name", "--frame", "--out", "--scale"));
+        List<String> positional = o.words();
+        String paletteName = o.get("--palette", null), name = o.get("--name", null);
+        String frame = o.get("--frame", "idle"), outFile = o.get("--out", null);
+        boolean force = o.has("--force");
+        if (positional.size() != 1 || paletteName == null) throw new Cli.UsageException("expected: " + usage());
+        int scale = o.number("--scale", 0, 1, Integer.MAX_VALUE);  // 0: detected from the image
+        if (name != null && !SpriteParser.isName(name)) {
+            throw new Cli.UsageException("--name '" + name + "' isn't a sprite name; use letters, digits, _ and -");
         }
-        if (positional.size() != 1 || paletteName == null) return usageError(err, "expected: " + usage());
+        if (!SpriteParser.isName(frame)) {
+            throw new Cli.UsageException("--frame '" + frame + "' isn't a frame name; use letters, digits, _ and -");
+        }
 
         Path png = projectDir.resolve(positional.getFirst());
         if (!Files.isRegularFile(png)) {
@@ -92,7 +73,7 @@ public final class ImportCommand implements Cli.Command {
         if (name == null) name = spriteNameFor(png);
         PngImporter.Result r;
         try {
-            r = scale == null ? PngImporter.importImage(img, palette) : PngImporter.importImage(img, palette, scale);
+            r = scale == 0 ? PngImporter.importImage(img, palette) : PngImporter.importImage(img, palette, scale);
         } catch (IllegalArgumentException e) {
             err.println(e.getMessage());
             return 1;
@@ -122,7 +103,7 @@ public final class ImportCommand implements Cli.Command {
             }
             if (target.getParent() != null) Files.createDirectories(target.getParent());
             Files.writeString(target, text, StandardCharsets.UTF_8);
-            out.println("wrote " + SpriteFiles.display(projectDir, target));
+            out.println("wrote " + ProjectFiles.display(projectDir, target));
         }
         printReport(report, img, r);
         return 0;
@@ -148,10 +129,5 @@ public final class ImportCommand implements Cli.Command {
         String cleaned = base.replaceAll("[^A-Za-z0-9_-]+", "_");
         // A name of only separators ("_", "-_") says nothing, so fall back to a generic one.
         return cleaned.replaceAll("[_-]", "").isEmpty() ? "imported" : cleaned;
-    }
-
-    private static int usageError(PrintStream err, String message) {
-        err.println(message);
-        return 2;
     }
 }

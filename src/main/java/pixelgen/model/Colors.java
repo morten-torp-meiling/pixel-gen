@@ -18,11 +18,14 @@ public final class Colors {
 
     /** Parses {@code #rrggbb} or {@code rrggbb}. Throws IllegalArgumentException otherwise. */
     public static int parseHex(String text) {
-        String s = text.startsWith("#") ? text.substring(1) : text;
-        if (s.length() != 6 || !s.chars().allMatch(c -> Character.digit(c, 16) >= 0)) {
-            throw new IllegalArgumentException("'" + text + "' is not a colour in the form #rrggbb");
+        if (text.length() - (text.startsWith("#") ? 1 : 0) == 6) {
+            try {
+                return parseHexWithAlpha(text) & 0xFFFFFF;
+            } catch (IllegalArgumentException notHex) {
+                // reported below, in this method's own words
+            }
         }
-        return Integer.parseInt(s, 16);
+        throw new IllegalArgumentException("'" + text + "' is not a colour in the form #rrggbb");
     }
 
     /** {@code #rrggbb}, or {@code #rrggbbaa} when {@code alpha} is below 255. */

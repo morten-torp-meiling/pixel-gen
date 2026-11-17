@@ -6,6 +6,7 @@ import pixelgen.godot.ExportState;
 import pixelgen.godot.Exporter;
 import pixelgen.parse.PaletteResolver;
 import pixelgen.parse.ParseException;
+import pixelgen.parse.ProjectFiles;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -42,16 +43,10 @@ public final class ExportCommand implements Cli.Command {
 
     public String summary() { return "Export changed assets/ files into the Godot project set in pixelgen.conf"; }
 
-    public int run(List<String> args, PrintStream out, PrintStream err) throws IOException {
-        boolean all = false;
-        for (String a : args) {
-            if (a.equals("--all")) {
-                all = true;
-            } else {
-                err.println("unknown argument '" + a + "'; expected: " + usage());
-                return 2;
-            }
-        }
+    public int run(List<String> args, PrintStream out, PrintStream err) throws Exception {
+        Options options = Options.parse(args, Set.of("--all"), Set.of());
+        if (!options.words().isEmpty()) throw new Cli.UsageException("expected: " + usage());
+        boolean all = options.has("--all");
         ExportConfig config;
         try {
             config = ExportConfig.load(projectDir);
@@ -67,7 +62,7 @@ public final class ExportCommand implements Cli.Command {
             err.println("no assets/ folder in " + projectDir);
             return 1;
         }
-        List<Path> files = SpriteFiles.collect(projectDir, List.of("assets"));
+        List<Path> files = SpriteFiles.collect(projectDir, List.of("assets"), SpriteFiles.ALL);
 
         Path statePath = projectDir.resolve(ExportState.FILE);
         ExportState old = ExportState.load(statePath);
@@ -83,7 +78,7 @@ public final class ExportCommand implements Cli.Command {
         Map<String, String> writtenBy = new HashMap<>();
         int exported = 0, unchanged = 0, failed = 0;
         for (Path f : files) {
-            String path = SpriteFiles.display(projectDir, f);
+            String path = ProjectFiles.display(projectDir, f);
             Path parent = assets.relativize(f.toAbsolutePath().normalize()).getParent();
             String folder = parent == null ? "" : parent.toString().replace('\\', '/');
             ExportState.Entry before = old.sources().get(path);
@@ -100,7 +95,7 @@ public final class ExportCommand implements Cli.Command {
             if (!all && before != null && before.hash().equals(src.hash()) && allExist(config, before.outputs())) {
                 unchanged++;
                 sources.put(path, before);
-                for (String o : before.outputs()) writtenBy.putIfAbsent(o, path);
+                warnShared(before.outputs(), path, writtenBy, out);
                 continue;
             }
             Exporter.Result r;
@@ -119,13 +114,7 @@ public final class ExportCommand implements Cli.Command {
             out.println("exported " + path + " -> res://" + dir + ": "
                     + String.join(", ", r.names()));
             for (String w : r.warnings()) out.println("     warning: " + w);
-            for (String o : r.outputs()) {
-                String other = writtenBy.putIfAbsent(o, path);
-                if (other != null && !other.equals(path)) {
-                    out.println("     warning: res://" + o + " is also written by " + other + "; give one of them"
-                            + " another name");
-                }
-            }
+            warnShared(r.outputs(), path, writtenBy, out);
         }
 
         // Files written before that no source writes now.
@@ -149,6 +138,21 @@ public final class ExportCommand implements Cli.Command {
         out.println("done: " + exported + " exported, " + unchanged + " unchanged, " + removed + " removed, "
                 + failed + " failed (Godot project " + config.project().toString().replace('\\', '/') + ")");
         return failed == 0 ? 0 : 1;
+    }
+
+    /**
+     * Records which source writes each output, and warns when another source writes it too,
+     * whether either of them was exported this time or not.
+     */
+    private static void warnShared(List<String> outputs, String path, Map<String, String> writtenBy,
+                                   PrintStream out) {
+        for (String o : outputs) {
+            String other = writtenBy.putIfAbsent(o, path);
+            if (other != null && !other.equals(path)) {
+                out.println("warning: res://" + o + " is written by both " + other + " and " + path
+                        + "; give one of them another name");
+            }
+        }
     }
 
     private static boolean allExist(ExportConfig config, List<String> outputs) {

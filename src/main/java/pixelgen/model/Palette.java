@@ -19,10 +19,6 @@ public final class Palette {
      * a descriptive name and its ramp.
      */
     public record Entry(char symbol, int rgb, int alpha, String name, String ramp) {
-        public Entry(char symbol, int rgb, String name, String ramp) {
-            this(symbol, rgb, 255, name, ramp);
-        }
-
         /** Packed 0xAARRGGBB, as used by images. */
         public int argb() { return (alpha << 24) | (rgb & 0xFFFFFF); }
 

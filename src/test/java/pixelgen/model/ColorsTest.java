@@ -14,7 +14,7 @@ class ColorsTest {
 
     @Test
     void rejectsMalformedHex() {
-        for (String bad : new String[] {"#12345", "#1234567", "#gg0000", "", "#"}) {
+        for (String bad : new String[] {"#12345", "#1234567", "#12345678", "#gg0000", "", "#"}) {
             assertThrows(IllegalArgumentException.class, () -> Colors.parseHex(bad), bad);
         }
     }

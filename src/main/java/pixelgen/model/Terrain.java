@@ -13,7 +13,7 @@ import java.util.Map;
  * both ends lets its tile sit next to a copy of itself; profiles that share their end values let
  * edges, corners and inner corners meet.
  * <p>
- * The light comes from the top left and the raised ground stands slightly higher:
+ * The raised ground stands slightly higher. With the light from the top left:
  * <ul>
  *   <li>{@code bank}: raised ground with lower ground below it or to its right (a face turned
  *       away from the light);</li>
@@ -21,6 +21,7 @@ import java.util.Map;
  *       the light);</li>
  *   <li>{@code shadow}: lower ground just below or right of raised ground (the shade it casts).</li>
  * </ul>
+ * Light from another corner mirrors these sides: from the top right, the bank faces down and left.
  *
  * @param name     the terrain's name
  * @param raised   the raised ground's texture, a full tile
@@ -29,12 +30,24 @@ import java.util.Map;
  * @param lip      symbol for the lit lip, or 0 for none
  * @param shadow   symbol for the cast shadow, or 0 for none
  * @param profiles by name; the first letter (n, s, w, e) is the side
+ * @param light    where the light comes from
  */
 public record Terrain(String name, Grid raised, Grid lower, char bank, char lip, char shadow,
-                      Map<String, int[]> profiles) {
+                      Map<String, int[]> profiles, Light light) {
 
     public Terrain {
         profiles = Map.copyOf(profiles);
+    }
+
+    /** A terrain lit from the top left. */
+    public Terrain(String name, Grid raised, Grid lower, char bank, char lip, char shadow,
+                   Map<String, int[]> profiles) {
+        this(name, raised, lower, bank, lip, shadow, profiles, Light.TOP_LEFT);
+    }
+
+    /** The same terrain lit from {@code newLight}. */
+    public Terrain withLight(Light newLight) {
+        return new Terrain(name, raised, lower, bank, lip, shadow, profiles, newLight);
     }
 
     /**
@@ -43,17 +56,26 @@ public record Terrain(String name, Grid raised, Grid lower, char bank, char lip,
      */
     public Grid blend(List<String> names, boolean union) {
         int w = raised.width(), h = raised.height();
+        // Steps towards the light (lx, ly) and away from it (-lx, -ly).
+        int lx = light.lx(), ly = light.ly();
         char[] out = new char[w * h];
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 char c;
                 if (isRaised(names, union, x, y)) {
-                    if (bank != 0 && (!isRaised(names, union, x, y + 1) || !isRaised(names, union, x + 1, y))) c = bank;
-                    else if (lip != 0 && (!isRaised(names, union, x, y - 1) || !isRaised(names, union, x - 1, y))) c = lip;
-                    else c = raised.at(x, y);
+                    if (bank != 0 && (!isRaised(names, union, x, y - ly) || !isRaised(names, union, x - lx, y))) {
+                        c = bank;
+                    } else if (lip != 0 && (!isRaised(names, union, x, y + ly) || !isRaised(names, union, x + lx, y))) {
+                        c = lip;
+                    } else {
+                        c = raised.at(x, y);
+                    }
                 } else {
-                    if (shadow != 0 && (isRaised(names, union, x, y - 1) || isRaised(names, union, x - 1, y))) c = shadow;
-                    else c = lower.at(x, y);
+                    if (shadow != 0 && (isRaised(names, union, x, y + ly) || isRaised(names, union, x + lx, y))) {
+                        c = shadow;
+                    } else {
+                        c = lower.at(x, y);
+                    }
                 }
                 out[y * w + x] = c;
             }

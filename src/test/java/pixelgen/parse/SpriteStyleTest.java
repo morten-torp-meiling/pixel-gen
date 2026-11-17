@@ -3,6 +3,7 @@ package pixelgen.parse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import pixelgen.model.Grid;
 import pixelgen.model.Light;
 import pixelgen.model.Sprite;
 import pixelgen.model.Style;
@@ -175,6 +176,55 @@ class SpriteStyleTest {
         List<String> e = assertThrows(ParseException.class, () -> TilesetParser.parse("style basic\nsize 4 4\n" + tile,
                 "t.tileset", "t", PaletteResolver.cached(project))).errors();
         assertTrue(e.getFirst().contains("tile 'a'"), "a size line wins over the style: " + e);
+    }
+
+    @Test
+    void theStylesLightReachesOutlines() throws Exception {
+        style("left", "palette basic\noutline K selective\n");
+        // A one-pixel 'g' in a 3x3 frame: the lit sides get G (green's darkest shade), the others K.
+        String dot = "size 3 3\noutline K selective\nframe a\n...\n.g.\n...\nend\n";
+        assertEquals(Grid.of(".G.", "KgG", ".K."), parse("style basic\n" + dot).frame("a").grid(), "top right");
+        assertEquals(Grid.of(".G.", "GgK", ".K."), parse("style left\n" + dot).frame("a").grid(), "top left");
+        assertEquals(Grid.of(".G.", "KgG", ".K."), parse("style basic\n" + dot.replace("outline K selective\n", "")
+                .replace("...\nend", "...\noutline\nend")).frame("a").grid(), "a bare outline inside a frame");
+    }
+
+    @Test
+    void theStylesLightReachesTerrainShading() throws Exception {
+        style("left", "palette basic\ntile 4 4\n");
+        Files.writeString(project.resolve("styles/basic.style"),
+                Files.readString(project.resolve("styles/basic.style")).replace("tile 8 8", "tile 4 4"));
+        // Raised 'g' on the left two columns; bank G, lip y, shadow k.
+        String tiles = """
+                part raised
+                gggg
+                gggg
+                gggg
+                gggg
+                end
+                part lower
+                wwww
+                wwww
+                wwww
+                wwww
+                end
+                terrain t
+                  raised raised
+                  lower lower
+                  bank G
+                  lip y
+                  shadow k
+                  w 2 2 2 2
+                end
+                tile edge wrap y
+                  blend t w
+                end
+                """;
+        PaletteResolver r = PaletteResolver.cached(project);
+        assertEquals(Grid.of("gGkw", "gGkw", "gGkw", "gGkw"),
+                TilesetParser.parse("style left\n" + tiles, "t.tileset", "t", r).sprite().frame("edge").grid());
+        assertEquals(Grid.of("gyww", "gyww", "gyww", "gyww"),
+                TilesetParser.parse("style basic\n" + tiles, "t.tileset", "t", r).sprite().frame("edge").grid());
     }
 
     @Test

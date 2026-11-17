@@ -50,6 +50,43 @@ class EffectsTest {
     }
 
     @Test
+    void selectiveOutlineFromTheTopRightDarkensTheTopAndRight() {
+        assertEquals(Grid.of(
+                "..G..",
+                ".GgG.",
+                "KgggG",
+                ".KKK."), Effects.outline(BUMP, fx, 'K', SELECTIVE, Light.TOP_RIGHT).grid());
+        assertEquals(Grid.of(".K.", "KgG", ".G."),
+                Effects.outline(Grid.of("...", ".g.", "..."), fx, 'K', SELECTIVE, Light.BOTTOM_RIGHT).grid());
+    }
+
+    /** Every light gives the top-left outline of the mirrored shape, mirrored back; outer outlines ignore it. */
+    @Test
+    void everyLightMirrorsTheTopLeftOutline() {
+        Grid shape = Grid.of(
+                "........",
+                "..gg....",
+                ".gGgy...",
+                ".ggrgg..",
+                "..gwg...",
+                "........");
+        Grid outer = Effects.outline(shape, fx, 'K', OUTER).grid();
+        assertEquals(Effects.outline(shape, fx, 'K', SELECTIVE).grid(),
+                Effects.outline(shape, fx, 'K', SELECTIVE, Light.TOP_LEFT).grid());
+        for (Light light : Light.values()) {
+            boolean flipX = light.lx() > 0, flipY = light.ly() > 0;
+            Grid mirrored = shape;
+            if (flipX) mirrored = mirrored.flipX();
+            if (flipY) mirrored = mirrored.flipY();
+            Grid expected = Effects.outline(mirrored, fx, 'K', SELECTIVE).grid();
+            if (flipX) expected = expected.flipX();
+            if (flipY) expected = expected.flipY();
+            assertEquals(expected, Effects.outline(shape, fx, 'K', SELECTIVE, light).grid(), light.word());
+            assertEquals(outer, Effects.outline(shape, fx, 'K', OUTER, light).grid(), light.word());
+        }
+    }
+
+    @Test
     void selectiveFallsBackToTheOutlineColourWhenThereIsNoDarkerShade() {
         // G is already the darkest green; r is in an unordered ramp.
         assertEquals(Grid.of(".K.", "KGK", ".K."), Effects.outline(Grid.of("...", ".G.", "..."), fx, 'K', SELECTIVE).grid());

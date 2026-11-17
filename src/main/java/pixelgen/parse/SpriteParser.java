@@ -3,6 +3,7 @@ package pixelgen.parse;
 import pixelgen.model.Anim;
 import pixelgen.model.Effects;
 import pixelgen.model.Grid;
+import pixelgen.model.Light;
 import pixelgen.model.Palette;
 import pixelgen.model.Sprite;
 import pixelgen.model.Style;
@@ -134,8 +135,11 @@ public final class SpriteParser {
 
     private record Recolor(int line, Map<Character, Character> map) implements Op, Transform {}
 
-    /** A {@code symbol} of 0 and a null {@code mode} come from the style (a bare {@code outline} line). */
-    private record Outline(int line, char symbol, Effects.OutlineMode mode) implements Op {}
+    /**
+     * A {@code symbol} of 0 and a null {@code mode} come from the style (a bare {@code outline}
+     * line); {@code light} is the style's, filled in with them (null until then: the top left).
+     */
+    private record Outline(int line, char symbol, Effects.OutlineMode mode, Light light) implements Op {}
 
     /** A {@code symbol} of 0 comes from the style ({@code shadow <width> <height>}). */
     private record Shadow(int line, char symbol, int width, int height) implements Op {}
@@ -418,7 +422,8 @@ public final class SpriteParser {
                 continue;
             }
             declaredTerrains.add(def.name);
-            Terrain t = checkTerrain(def, source, width, height, palette, declaredParts, parts, errors, warnings);
+            Terrain t = checkTerrain(def, source, width, height, palette, style.light(), declaredParts, parts, errors,
+                    warnings);
             if (t != null) terrains.put(def.name, t);
         }
         // Sprite-level effects: check each colour once, then apply them to every frame.
@@ -522,8 +527,9 @@ public final class SpriteParser {
     }
 
     /**
-     * Gives bare {@code outline} and {@code shadow <w> <h>} lines the style's colour (and mode).
-     * Where the style sets none, the line is an error and is dropped.
+     * Gives bare {@code outline} and {@code shadow <w> <h>} lines the style's colour (and mode),
+     * and every outline the style's light. Where the style sets no colour, the line is an error
+     * and is dropped.
      */
     private static void fillFromStyle(List<Op> ops, Style style, boolean styleFailed, String source,
                                       List<String> errors) {
@@ -532,9 +538,12 @@ public final class SpriteParser {
         for (var it = ops.listIterator(); it.hasNext(); ) {
             Op op = it.next();
             String where = source + ":" + op.line() + ": ";
-            if (op instanceof Outline o && o.symbol() == 0) {
+            if (op instanceof Outline o && o.symbol() != 0) {
+                it.set(new Outline(o.line(), o.symbol(), o.mode(), style.light()));
+            } else if (op instanceof Outline o) {
                 if (style.hasOutline()) {
-                    it.set(new Outline(o.line(), style.outline(), o.mode() != null ? o.mode() : style.outlineMode()));
+                    it.set(new Outline(o.line(), style.outline(), o.mode() != null ? o.mode() : style.outlineMode(),
+                            style.light()));
                 } else {
                     if (!styleFailed) {
                         errors.add(where + "'outline' without a colour takes it from the style, and " + which
@@ -783,10 +792,10 @@ public final class SpriteParser {
      */
     private static Outline parseOutline(String[] tokens, int lineNo, String where, List<String> errors) {
         String form = "outline <colour> [outer|selective]";
-        if (tokens.length == 1) return new Outline(lineNo, (char) 0, null);
+        if (tokens.length == 1) return new Outline(lineNo, (char) 0, null, null);
         if (tokens.length == 2 && (tokens[1].equals("outer") || tokens[1].equals("selective"))) {
             return new Outline(lineNo, (char) 0, tokens[1].equals("outer")
-                    ? Effects.OutlineMode.OUTER : Effects.OutlineMode.SELECTIVE);
+                    ? Effects.OutlineMode.OUTER : Effects.OutlineMode.SELECTIVE, null);
         }
         if (tokens.length > 3 || !isSymbol(tokens[1])) {
             errors.add(where + "expected '" + form + "', like 'outline K' (or a bare 'outline' in the style's colour)");
@@ -803,7 +812,7 @@ public final class SpriteParser {
                 }
             }
         }
-        return new Outline(lineNo, tokens[1].charAt(0), mode);
+        return new Outline(lineNo, tokens[1].charAt(0), mode, null);
     }
 
     /** {@code shadow <colour> <width> <height>}, or {@code shadow <width> <height>} in the style's colour. */
@@ -840,7 +849,8 @@ public final class SpriteParser {
     /** Draws an outline or shadow; its colour has already been checked. */
     private static Effects.Result applyEffect(Op op, Grid grid, Palette palette, int anchorX, int anchorY) {
         return switch (op) {
-            case Outline o -> Effects.outline(grid, palette, o.symbol(), o.mode());
+            case Outline o -> Effects.outline(grid, palette, o.symbol(), o.mode(),
+                    o.light() != null ? o.light() : Light.TOP_LEFT);
             case Shadow s -> Effects.shadow(grid, s.symbol(), s.width(), s.height(), anchorX, anchorY);
             default -> throw new IllegalArgumentException("not an effect: " + op);
         };
@@ -1086,8 +1096,8 @@ public final class SpriteParser {
 
     /** Checks a terrain against the parts and palette; null after an error. */
     private static Terrain checkTerrain(TerrainDef def, String source, int width, int height, Palette palette,
-                                        Set<String> declaredParts, Map<String, Grid> parts, List<String> errors,
-                                        List<String> warnings) {
+                                        Light light, Set<String> declaredParts, Map<String, Grid> parts,
+                                        List<String> errors, List<String> warnings) {
         int before = errors.size();
         String where = source + ":" + def.line + ": terrain '" + def.name + "': ";
         Grid[] textures = new Grid[2];
@@ -1158,7 +1168,7 @@ public final class SpriteParser {
             profiles.put(name, d);
         }
         if (errors.size() > before || textures[0] == null || textures[1] == null) return null;
-        return new Terrain(def.name, textures[0], textures[1], symbols[0], symbols[1], symbols[2], profiles);
+        return new Terrain(def.name, textures[0], textures[1], symbols[0], symbols[1], symbols[2], profiles, light);
     }
 
     /** Checks the grid rows of a part or frame and returns them as a grid, or null on errors. */

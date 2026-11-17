@@ -13,9 +13,9 @@ public final class Effects {
         /** Every outline pixel in the given colour. */
         OUTER,
         /**
-         * "Sel-out": on the lit top and left sides the outline takes the darkest shade of the
-         * colour it borders (so a leaf gets a dark green edge), elsewhere the given colour. This
-         * keeps black off the lit edges, matching light from the top left.
+         * "Sel-out": on the lit sides (the top and left, with light from the top left) the outline
+         * takes the darkest shade of the colour it borders (so a leaf gets a dark green edge),
+         * elsewhere the given colour. This keeps black off the lit edges.
          */
         SELECTIVE
     }
@@ -26,9 +26,15 @@ public final class Effects {
     /**
      * Adds a 1 px outline around every solid (opaque) shape, on its four sides (not diagonally,
      * which keeps corners round). Cells that are empty or hold a translucent colour, such as a
-     * shadow, can become outline; opaque cells never change.
+     * shadow, can become outline; opaque cells never change. Selective outlines are lit from the
+     * top left.
      */
     public static Result outline(Grid grid, Palette palette, char symbol, OutlineMode mode) {
+        return outline(grid, palette, symbol, mode, Light.TOP_LEFT);
+    }
+
+    /** As {@link #outline(Grid, Palette, char, OutlineMode)}, with selective outlines lit from {@code light}. */
+    public static Result outline(Grid grid, Palette palette, char symbol, OutlineMode mode, Light light) {
         int w = grid.width(), h = grid.height();
         char[] in = grid.cells();
         char[] out = in.clone();
@@ -40,15 +46,16 @@ public final class Effects {
                     if (x == 0 || y == 0 || x == w - 1 || y == h - 1) clipped = true;
                     continue;
                 }
-                // Neighbours below and to the right mean this cell is on the shape's top or left side.
-                char below = solid(in, w, h, x, y + 1, palette);
-                char right = solid(in, w, h, x + 1, y, palette);
-                char above = solid(in, w, h, x, y - 1, palette);
-                char left = solid(in, w, h, x - 1, y, palette);
-                if (below == 0 && right == 0 && above == 0 && left == 0) continue;
+                // A neighbour on the side away from the light means this cell is on the shape's
+                // lit side (below or right of it, with light from the top left: the top or left side).
+                char awayY = solid(in, w, h, x, y - light.ly(), palette);
+                char awayX = solid(in, w, h, x - light.lx(), y, palette);
+                char towardsY = solid(in, w, h, x, y + light.ly(), palette);
+                char towardsX = solid(in, w, h, x + light.lx(), y, palette);
+                if (awayY == 0 && awayX == 0 && towardsY == 0 && towardsX == 0) continue;
                 char colour = symbol;
-                if (mode == OutlineMode.SELECTIVE && (below != 0 || right != 0)) {
-                    colour = darkestShade(below != 0 ? below : right, symbol, palette);
+                if (mode == OutlineMode.SELECTIVE && (awayY != 0 || awayX != 0)) {
+                    colour = darkestShade(awayY != 0 ? awayY : awayX, symbol, palette);
                 }
                 out[y * w + x] = colour;
             }

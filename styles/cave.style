@@ -1,0 +1,10 @@
+# Caves and mines: cool, dark stone and earth, with warm lantern light from the top right.
+style cave
+palette cave
+light top-right
+# Full outlines: on dark ground, props and characters need the whole silhouette to read.
+outline K outer
+# The colour of 'shadow <width> <height>'.
+shadow ~
+tile 16 16
+guide cave.md

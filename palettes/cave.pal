@@ -1,0 +1,51 @@
+# cave - caves and mines: cool, dark stone and earth, old timber and iron, with warm lantern
+# light and a few teal crystals as accents.
+# Every ordered ramp goes from dark to light. The rock ramps lean blue-violet in the shadows and
+# drift slightly warm at the top, as if lit by a lantern; only the lantern ramp is truly warm.
+# '.' is always transparent and can't be used as a colour symbol.
+palette cave
+
+ramp ink
+  K  #0b0911  outline
+  k  #262131  soft outline
+
+ramp stone
+  X  #1c1b2a  stone deepest
+  x  #2d2e43  stone dark
+  Z  #45495f  stone
+  z  #646a80  stone light
+  A  #8f909c  stone highlight
+
+ramp floor
+  D  #1f191e  floor dark
+  d  #352c31  floor
+  T  #514448  floor light
+  t  #75665f  gravel light
+
+ramp timber
+  W  #2a1c1a  timber dark
+  w  #472e25  timber
+  V  #6a4630  timber light
+  v  #946b48  timber highlight
+
+ramp iron
+  I  #1f2329  iron dark
+  i  #363d45  iron
+  J  #56626b  iron light
+  j  #8794a0  iron shine
+
+ramp lantern
+  O  #6e2c14  ember
+  o  #b4561d  orange
+  Y  #e8962f  amber
+  y  #ffd06e  flame light
+  q  #fff3d1  flame core
+
+ramp crystal
+  C  #1a4650  crystal dark
+  c  #2a7d84  crystal
+  N  #56c0b8  crystal light
+  n  #b2f0e2  crystal shine
+
+ramp effects unordered
+  ~  #0b091266  shadow (40% ink, drawn by the shadow effect)
